@@ -1,0 +1,246 @@
+package com.viso.ui.bills
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.viso.ui.components.BillCard
+import com.viso.ui.components.CurrencyTextField
+import com.viso.ui.components.EmptyState
+import com.viso.ui.components.VisoCategoryPicker
+import com.viso.ui.components.VisoBottomSheet
+import com.viso.ui.components.VisoNumberPicker
+import com.viso.ui.theme.AccentBlue
+import com.viso.ui.theme.AccentRed
+import com.viso.ui.theme.BgApp
+import com.viso.ui.theme.BgCard
+import com.viso.ui.theme.BgInput
+import com.viso.ui.theme.Spacing
+import com.viso.ui.theme.TextPrimary
+import com.viso.ui.theme.TextSecondary
+import com.viso.ui.utils.formatCurrency
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun BillsScreen(viewModel: BillsViewModel = hiltViewModel()) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(Unit) {
+        viewModel.errorEvent.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    Scaffold(
+        containerColor = BgApp,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Contas", style = MaterialTheme.typography.headlineMedium, color = TextPrimary) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgApp)
+            )
+        },
+        bottomBar = {
+            Button(
+                onClick = { viewModel.showAddSheet() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Spacing.lg),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+            ) {
+                Text("+ Nova conta")
+            }
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = BgCard),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(Spacing.md)) {
+                            Text("Total contas", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text(formatCurrency(state.totalBillsCents), style = MaterialTheme.typography.titleMedium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = BgCard),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(modifier = Modifier.padding(Spacing.md)) {
+                            Text("Limite 70%", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text(formatCurrency(state.rule.billsLimitCents), style = MaterialTheme.typography.titleMedium, color = AccentBlue, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+
+            if (state.bills.isEmpty()) {
+                item {
+                    EmptyState(
+                        icon = Icons.Rounded.ReceiptLong,
+                        title = "Nenhuma conta cadastrada",
+                        subtitle = "Adicione suas contas fixas para começar"
+                    )
+                }
+            } else {
+                state.billsByCategory.forEach { (category, bills) ->
+                    stickyHeader {
+                        Text(
+                            text = category.replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(BgApp)
+                                .padding(vertical = Spacing.sm)
+                        )
+                    }
+                    items(bills, key = { it.id }) { bill ->
+                        BillCard(
+                            bill = bill,
+                            onPaid = { viewModel.markAsPaid(bill.id) },
+                            onDelete = { viewModel.requestDelete(bill.id) }
+                        )
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(Spacing.xxxl)) }
+        }
+
+        if (state.showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelDelete() },
+                title = { Text("Excluir conta?", color = TextPrimary) },
+                text = { Text("Esta ação não pode ser desfeita.", color = TextSecondary) },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmDelete() }) {
+                        Text("Excluir", color = AccentRed)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.cancelDelete() }) {
+                        Text("Cancelar", color = TextSecondary)
+                    }
+                },
+                containerColor = BgCard
+            )
+        }
+
+        if (state.showSheet) {
+            AddEditBillSheet(state, viewModel)
+        }
+    }
+}
+
+@Composable
+private fun AddEditBillSheet(state: BillsUiState, viewModel: BillsViewModel) {
+    VisoBottomSheet(onDismiss = { viewModel.hideSheet() }) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
+            Text(
+                text = if (state.editingBill != null) "Editar conta" else "Nova conta",
+                style = MaterialTheme.typography.headlineMedium,
+                color = TextPrimary
+            )
+            Spacer(Modifier.height(Spacing.lg))
+
+            OutlinedTextField(
+                value = state.billName,
+                onValueChange = { viewModel.onBillNameChange(it) },
+                label = { Text("Nome") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AccentBlue,
+                    unfocusedBorderColor = BgInput,
+                    focusedContainerColor = BgInput,
+                    unfocusedContainerColor = BgInput,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedLabelColor = AccentBlue,
+                    unfocusedLabelColor = TextSecondary
+                )
+            )
+            Spacer(Modifier.height(Spacing.sm))
+
+            CurrencyTextField(
+                amountCents = state.billAmountCents,
+                onAmountChange = { viewModel.onBillAmountChange(it) },
+                label = "Valor",
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(Spacing.sm))
+
+            VisoNumberPicker(
+                value = state.billDueDay,
+                onValueChange = { viewModel.onBillDueDayChange(it) },
+                range = 1..28,
+                label = "Vencimento",
+                displayTransform = { "Dia $it" }
+            )
+
+            Spacer(Modifier.height(Spacing.sm))
+            VisoCategoryPicker(
+                selected = state.billCategory,
+                onSelect = { viewModel.onBillCategoryChange(it) }
+            )
+
+            Spacer(Modifier.height(Spacing.lg))
+            Button(
+                onClick = { viewModel.saveBill() },
+                enabled = state.billName.isNotBlank() && state.billAmountCents > 0,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+            ) {
+                Text(if (state.editingBill != null) "Salvar" else "Adicionar")
+            }
+            Spacer(Modifier.height(Spacing.xxl))
+        }
+    }
+}
