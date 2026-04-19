@@ -9,4 +9,6 @@ data class Bill(
     val isPaid: Boolean,
     val paidMonth: String,
     val createdAt: Long
+    ,
+    val isRecurring: Boolean = false
 )

@@ -36,6 +36,7 @@ data class BillsUiState(
     val billAmountCents: Long = 0L,
     val billDueDay: Int = 1,
     val billCategory: String = "outro",
+    val billIsRecurring: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val deletingBillId: String? = null
 )
@@ -99,7 +100,8 @@ class BillsViewModel @Inject constructor(
             it.copy(
                 showSheet = true, editingBill = null,
                 billName = "", billAmountCents = 0L,
-                billDueDay = 1, billCategory = "outro"
+                billDueDay = 1, billCategory = "outro",
+                billIsRecurring = false
             )
         }
     }
@@ -111,7 +113,8 @@ class BillsViewModel @Inject constructor(
                 billName = bill.name,
                 billAmountCents = bill.amountCents,
                 billDueDay = bill.dueDay,
-                billCategory = bill.category
+                billCategory = bill.category,
+                billIsRecurring = bill.isRecurring
             )
         }
     }
@@ -136,6 +139,10 @@ class BillsViewModel @Inject constructor(
         _uiState.update { it.copy(billCategory = cat) }
     }
 
+    fun onBillIsRecurringChange(isRecurring: Boolean) {
+        _uiState.update { it.copy(billIsRecurring = isRecurring) }
+    }
+
     fun saveBill() {
         val state = _uiState.value
         if (state.billName.isBlank()) {
@@ -154,6 +161,7 @@ class BillsViewModel @Inject constructor(
                     amountCents = state.billAmountCents,
                     dueDay = state.billDueDay,
                     category = state.billCategory,
+                    isRecurring = state.billIsRecurring,
                     isPaid = state.editingBill?.isPaid ?: false,
                     paidMonth = state.editingBill?.paidMonth ?: "",
                     createdAt = state.editingBill?.createdAt ?: System.currentTimeMillis()

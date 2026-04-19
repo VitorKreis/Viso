@@ -74,6 +74,14 @@ fun ConfigScreen(
         }
     }
 
+    // local dialog state triggered after reset
+    val showRecreateDialogState = remember { androidx.compose.runtime.mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        viewModel.postResetEvent.collect {
+            showRecreateDialogState.value = true
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = BgApp,
@@ -348,6 +356,24 @@ fun ConfigScreen(
                     TextButton(onClick = { viewModel.cancelReset() }) {
                         Text("Cancelar", color = TextSecondary)
                     }
+                },
+                containerColor = BgCard
+            )
+        }
+
+        if (showRecreateDialogState.value) {
+            AlertDialog(
+                onDismissRequest = { showRecreateDialogState.value = false },
+                title = { Text("Recriar reserva de emergência?", color = TextPrimary) },
+                text = { Text("Deseja recriar automaticamente a reserva de emergência com valores padrão?", color = TextSecondary) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showRecreateDialogState.value = false
+                        viewModel.createEmergencyFund()
+                    }) { Text("Criar agora", color = AccentBlue) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRecreateDialogState.value = false }) { Text("Mais tarde", color = TextSecondary) }
                 },
                 containerColor = BgCard
             )

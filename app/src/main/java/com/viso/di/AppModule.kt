@@ -22,8 +22,13 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): VisoDB =
+        // Migration to add `isRecurring` column to `bills` table (default false)
         Room.databaseBuilder(context, VisoDB::class.java, "viso.db")
-            .fallbackToDestructiveMigration()
+            .addMigrations(object : androidx.room.migration.Migration(1, 2) {
+                override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    database.execSQL("ALTER TABLE bills ADD COLUMN isRecurring INTEGER NOT NULL DEFAULT 0")
+                }
+            })
             .build()
 
     @Provides

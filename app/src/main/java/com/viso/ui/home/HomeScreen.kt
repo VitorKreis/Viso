@@ -253,7 +253,8 @@ fun HomeScreen(
                     BillCard(
                         bill = bill,
                         onPaid = {},
-                        onDelete = {}
+                        onDelete = {},
+                        onEdit = {}
                     )
                 }
             }

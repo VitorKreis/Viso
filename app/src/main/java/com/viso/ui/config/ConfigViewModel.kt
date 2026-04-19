@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.viso.data.db.VisoDB
 import com.viso.data.repository.ConfigRepository
 import com.viso.data.repository.ExtraIncomeRepository
+import com.viso.data.repository.GoalRepository
+import com.viso.data.repository.BillRepository
 import com.viso.domain.model.Config
 import com.viso.domain.model.ExtraIncome
 import com.viso.domain.model.SalaryMode
@@ -50,11 +52,17 @@ class ConfigViewModel @Inject constructor(
     private val configRepo: ConfigRepository,
     private val extraRepo: ExtraIncomeRepository,
     private val scheduleNotif: ScheduleNotificationsUseCase,
-    private val db: VisoDB
+    private val db: VisoDB,
+    private val goalRepo: GoalRepository,
+    private val billRepo: BillRepository,
+    private val calculateRule: com.viso.domain.usecase.CalculateRuleUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConfigUiState())
     val uiState: StateFlow<ConfigUiState> = _uiState.asStateFlow()
+
+    private val _postResetEvent = MutableSharedFlow<Unit>(replay = 0)
+    val postResetEvent: SharedFlow<Unit> = _postResetEvent.asSharedFlow()
 
     private val _errorEvent = MutableSharedFlow<String>()
     val errorEvent: SharedFlow<String> = _errorEvent.asSharedFlow()
@@ -237,8 +245,40 @@ class ConfigViewModel @Inject constructor(
                 db.clearAllTables()
                 configRepo.clearAll()
                 _uiState.update { it.copy(showResetDialog2 = false) }
+                // Notify UI to prompt user to recreate emergency fund
+                _postResetEvent.emit(Unit)
             } catch (e: Exception) {
                 _errorEvent.emit("Erro ao resetar dados: ${e.message}")
+            }
+        }
+    }
+
+    fun createEmergencyFund() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val currentMonth = YearMonth.now().toString()
+                val bills = try { billRepo.getAllBills() } catch (t: Throwable) { emptyList<com.viso.domain.model.Bill>() }
+                val totalBills = bills.sumOf { it.amountCents }
+                val emergencyTarget = com.viso.domain.usecase.emergencyFundTarget(totalBills)
+                val extraTotal = try { extraRepo.getTotalForMonth(currentMonth) } catch (t: Throwable) { 0L }
+                val config = try { configRepo.getConfig() } catch (t: Throwable) { com.viso.domain.model.Config() }
+                val rule = calculateRule(config.effectiveSalaryCents, extraTotal)
+                val savingsBudget = rule.savingsCents
+
+                goalRepo.insert(
+                    com.viso.domain.model.Goal(
+                        id = java.util.UUID.randomUUID().toString(),
+                        name = "Reserva de emergência",
+                        targetAmountCents = emergencyTarget,
+                        currentAmountCents = 0L,
+                        monthlyContributionCents = savingsBudget,
+                        isEmergencyFund = true,
+                        color = "teal",
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                _errorEvent.emit("Erro ao criar reserva de emergência: ${e.message}")
             }
         }
     }

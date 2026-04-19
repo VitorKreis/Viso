@@ -24,6 +24,9 @@ interface BillDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(bill: BillEntity)
 
+    @Query("SELECT * FROM bills WHERE name = :name AND amountCents = :amountCents AND dueDay = :dueDay AND category = :category LIMIT 1")
+    suspend fun findDuplicate(name: String, amountCents: Long, dueDay: Int, category: String): BillEntity?
+
     @Update
     suspend fun update(bill: BillEntity)
 

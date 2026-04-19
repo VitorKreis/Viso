@@ -12,5 +12,6 @@ data class BillEntity(
     val category: String,
     val isPaid: Boolean,
     val paidMonth: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val isRecurring: Boolean = false
 )

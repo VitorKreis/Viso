@@ -23,12 +23,15 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -70,6 +73,7 @@ fun BillCard(
     bill: Bill,
     onPaid: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val today = LocalDate.now()
@@ -129,7 +133,8 @@ fun BillCard(
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
                 .background(BgCard)
-                .padding(Spacing.md),
+                .padding(Spacing.md)
+                .clickable { onEdit() },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
@@ -174,6 +179,17 @@ fun BillCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 StatusBadge(status = status)
+            }
+            // Actions: mark paid, delete
+            Column(horizontalAlignment = Alignment.End) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    IconButton(onClick = { onPaid() }) {
+                        Icon(Icons.Rounded.Check, contentDescription = "Marcar como paga", tint = AccentGreen)
+                    }
+                    IconButton(onClick = { onDelete() }) {
+                        Icon(Icons.Rounded.Delete, contentDescription = "Excluir", tint = AccentRed)
+                    }
+                }
             }
         }
     }

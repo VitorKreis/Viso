@@ -18,7 +18,7 @@ import com.viso.data.db.entity.MonthHistoryEntity
         ExtraIncomeEntity::class,
         MonthHistoryEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class VisoDB : RoomDatabase() {

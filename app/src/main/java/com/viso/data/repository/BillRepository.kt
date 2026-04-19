@@ -22,7 +22,13 @@ class BillRepository @Inject constructor(
         billDao.getBillById(id)?.toDomain()
 
     suspend fun insert(bill: Bill) =
-        billDao.insert(bill.toEntity())
+        // Prevent accidental duplicates: if a bill with the same
+        // name/amount/dueDay/category exists, reuse its id and replace it.
+        run {
+            val existing = billDao.findDuplicate(bill.name, bill.amountCents, bill.dueDay, bill.category)
+            val toInsert = if (existing != null) bill.copy(id = existing.id) else bill
+            billDao.insert(toInsert.toEntity())
+        }
 
     suspend fun update(bill: Bill) =
         billDao.update(bill.toEntity())
@@ -48,6 +54,8 @@ class BillRepository @Inject constructor(
         isPaid = isPaid,
         paidMonth = paidMonth,
         createdAt = createdAt
+        ,
+        isRecurring = isRecurring
     )
 
     private fun Bill.toEntity() = BillEntity(
@@ -59,5 +67,7 @@ class BillRepository @Inject constructor(
         isPaid = isPaid,
         paidMonth = paidMonth,
         createdAt = createdAt
+        ,
+        isRecurring = isRecurring
     )
 }

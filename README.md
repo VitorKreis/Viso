@@ -476,3 +476,50 @@ Este projeto é de uso pessoal.
 ---
 
 **Viso v1.0.0** — Feito com Kotlin + Jetpack Compose
+
+## 🧾 Notas do Desenvolvedor (recente)
+
+Mudanças importantes (abril/2026):
+
+- Recorrência mensal de contas: adicionada a flag `isRecurring` ao modelo/entidade `Bill` e mapeada pelo repositório. Arquivos principais: [app/src/main/java/com/viso/ui/bills/BillsScreen.kt](app/src/main/java/com/viso/ui/bills/BillsScreen.kt), [app/src/main/java/com/viso/ui/bills/BillsViewModel.kt](app/src/main/java/com/viso/ui/bills/BillsViewModel.kt), [app/src/main/java/com/viso/data/repository/BillRepository.kt](app/src/main/java/com/viso/data/repository/BillRepository.kt), [app/src/main/java/com/viso/domain/model/Bill.kt](app/src/main/java/com/viso/domain/model/Bill.kt), [app/src/main/java/com/viso/data/db/entity/BillEntity.kt](app/src/main/java/com/viso/data/db/entity/BillEntity.kt).
+
+- Migração Room (v1 → v2): o schema do DB foi incrementado para `version = 2` e foi adicionada uma Migration(1,2) em [app/src/main/java/com/viso/di/AppModule.kt](app/src/main/java/com/viso/di/AppModule.kt) que cria a coluna `isRecurring` com valor padrão `0`.
+
+- Testes unitários: teste isolado incluído em [app/src/test/java/com/viso/data/repository/BillRepositoryTest.kt](app/src/test/java/com/viso/data/repository/BillRepositoryTest.kt) que valida persistência de `isRecurring` e deduplicação.
+
+- Metas (Goals): edição e exclusão de metas já estão expostas na UI em [app/src/main/java/com/viso/ui/goals/GoalsScreen.kt](app/src/main/java/com/viso/ui/goals/GoalsScreen.kt) e [app/src/main/java/com/viso/ui/goals/GoalsViewModel.kt](app/src/main/java/com/viso/ui/goals/GoalsViewModel.kt).
+
+### Como testar localmente
+
+1. Rodar testes unitários:
+
+```bash
+./gradlew test --no-daemon
+```
+
+2. Gerar e instalar o APK de debug (dispositivo conectado; aceite o prompt de depuração USB):
+
+```bash
+./gradlew installDebug --no-daemon --console=plain
+# Se o adb não estiver no PATH, use:
+"C:\Users\Usuario\AppData\Local\Android\Sdk\platform-tools\adb" devices -l
+```
+
+3. QA rápido após instalar:
+- Criar uma nova conta e marcar a opção "Recorrente mensal"; confirmar que o registro é salvo.
+- Marcar a conta como paga; confirmar que o campo `paidMonth` foi preenchido com o mês atual.
+- Criar/editar/excluir uma meta para validar `GoalsScreen`.
+
+### Commit & Push
+
+```bash
+git add .
+git commit -m "feat: add recurring monthly bills, Room migration v1->v2, tests"
+git push origin <sua-branch>
+```
+
+### Próximos passos recomendados
+
+- Decidir comportamento de recorrência (mostrar como fixa todo mês vs. gerar ocorrências mensais históricas).
+- Adicionar interface para editar `paidMonth` manualmente quando necessário.
+- Atualizar changelog e versão do app se for um release.

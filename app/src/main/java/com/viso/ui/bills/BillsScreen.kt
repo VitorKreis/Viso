@@ -34,6 +34,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Switch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -145,7 +147,8 @@ fun BillsScreen(viewModel: BillsViewModel = hiltViewModel()) {
                         BillCard(
                             bill = bill,
                             onPaid = { viewModel.markAsPaid(bill.id) },
-                            onDelete = { viewModel.requestDelete(bill.id) }
+                            onDelete = { viewModel.requestDelete(bill.id) },
+                            onEdit = { viewModel.showEditSheet(bill) }
                         )
                     }
                 }
@@ -230,6 +233,12 @@ private fun AddEditBillSheet(state: BillsUiState, viewModel: BillsViewModel) {
                 selected = state.billCategory,
                 onSelect = { viewModel.onBillCategoryChange(it) }
             )
+
+            Spacer(Modifier.height(Spacing.sm))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Recorrente mensal", color = TextPrimary)
+                Switch(checked = state.billIsRecurring, onCheckedChange = { viewModel.onBillIsRecurringChange(it) })
+            }
 
             Spacer(Modifier.height(Spacing.lg))
             Button(
