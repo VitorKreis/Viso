@@ -29,6 +29,7 @@ import com.viso.ui.config.ConfigScreen
 import com.viso.ui.goals.GoalsScreen
 import com.viso.ui.home.HomeScreen
 import com.viso.ui.onboarding.OnboardingScreen
+import com.viso.ui.reports.ReportsScreen
 import com.viso.ui.theme.AccentBlue
 import com.viso.ui.theme.BgCard2
 import com.viso.ui.theme.TextMuted
@@ -77,6 +78,9 @@ fun VisoNavGraph(startDestination: String) {
         }
         composable(Screen.Config.route) {
             ConfigScreen(onBack = { rootNavController.popBackStack() })
+        }
+        composable(Screen.Reports.route) {
+            ReportsScreen(onBack = { rootNavController.popBackStack() })
         }
     }
 }
@@ -128,9 +132,10 @@ fun MainScaffold(rootNavController: NavHostController, initialTab: Screen) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {
-                HomeScreen(onNavigateToConfig = {
-                    rootNavController.navigate(Screen.Config.route)
-                })
+                HomeScreen(
+                    onNavigateToConfig = { rootNavController.navigate(Screen.Config.route) },
+                    onNavigateToReports = { rootNavController.navigate(Screen.Reports.route) }
+                )
             }
             composable(Screen.Bills.route) {
                 BillsScreen()

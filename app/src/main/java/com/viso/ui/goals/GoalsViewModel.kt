@@ -34,6 +34,7 @@ data class GoalsUiState(
     val editingGoal: Goal? = null,
     val goalName: String = "",
     val goalTargetCents: Long = 0L,
+    val goalCurrentCents: Long = 0L,
     val goalContribCents: Long = 0L,
     val goalColor: String = "blue",
     val showAddAmountDialog: Boolean = false,
@@ -127,7 +128,7 @@ class GoalsViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 showSheet = true, editingGoal = null,
-                goalName = "", goalTargetCents = 0L,
+                goalName = "", goalTargetCents = 0L, goalCurrentCents = 0L,
                 goalContribCents = 0L, goalColor = "blue"
             )
         }
@@ -139,6 +140,7 @@ class GoalsViewModel @Inject constructor(
                 showSheet = true, editingGoal = goal,
                 goalName = goal.name,
                 goalTargetCents = goal.targetAmountCents,
+                goalCurrentCents = goal.currentAmountCents,
                 goalContribCents = goal.monthlyContributionCents,
                 goalColor = goal.color
             )
@@ -155,6 +157,10 @@ class GoalsViewModel @Inject constructor(
 
     fun onGoalTargetChange(cents: Long) {
         _uiState.update { it.copy(goalTargetCents = cents) }
+    }
+
+    fun onGoalCurrentChange(cents: Long) {
+        _uiState.update { it.copy(goalCurrentCents = cents) }
     }
 
     fun onGoalContribChange(cents: Long) {
@@ -181,7 +187,7 @@ class GoalsViewModel @Inject constructor(
                     id = state.editingGoal?.id ?: UUID.randomUUID().toString(),
                     name = state.goalName.trim(),
                     targetAmountCents = state.goalTargetCents,
-                    currentAmountCents = state.editingGoal?.currentAmountCents ?: 0L,
+                    currentAmountCents = state.goalCurrentCents,
                     monthlyContributionCents = state.goalContribCents,
                     isEmergencyFund = false,
                     color = state.goalColor,

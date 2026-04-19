@@ -37,6 +37,8 @@ data class BillsUiState(
     val billDueDay: Int = 1,
     val billCategory: String = "outro",
     val billIsRecurring: Boolean = false,
+    val billMonth: String = "",
+    val showMonthPicker: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val deletingBillId: String? = null
 )
@@ -101,7 +103,9 @@ class BillsViewModel @Inject constructor(
                 showSheet = true, editingBill = null,
                 billName = "", billAmountCents = 0L,
                 billDueDay = 1, billCategory = "outro",
-                billIsRecurring = false
+                billIsRecurring = false,
+                billMonth = java.time.YearMonth.now().toString(),
+                showMonthPicker = false
             )
         }
     }
@@ -114,7 +118,9 @@ class BillsViewModel @Inject constructor(
                 billAmountCents = bill.amountCents,
                 billDueDay = bill.dueDay,
                 billCategory = bill.category,
-                billIsRecurring = bill.isRecurring
+                billIsRecurring = bill.isRecurring,
+                billMonth = bill.paidMonth.ifBlank { java.time.YearMonth.now().toString() },
+                showMonthPicker = false
             )
         }
     }
@@ -143,6 +149,18 @@ class BillsViewModel @Inject constructor(
         _uiState.update { it.copy(billIsRecurring = isRecurring) }
     }
 
+    fun onBillMonthChange(month: String) {
+        _uiState.update { it.copy(billMonth = month) }
+    }
+
+    fun showMonthPicker() {
+        _uiState.update { it.copy(showMonthPicker = true) }
+    }
+
+    fun hideMonthPicker() {
+        _uiState.update { it.copy(showMonthPicker = false) }
+    }
+
     fun saveBill() {
         val state = _uiState.value
         if (state.billName.isBlank()) {
@@ -162,8 +180,8 @@ class BillsViewModel @Inject constructor(
                     dueDay = state.billDueDay,
                     category = state.billCategory,
                     isRecurring = state.billIsRecurring,
+                    paidMonth = state.billMonth,
                     isPaid = state.editingBill?.isPaid ?: false,
-                    paidMonth = state.editingBill?.paidMonth ?: "",
                     createdAt = state.editingBill?.createdAt ?: System.currentTimeMillis()
                 )
                 if (state.editingBill != null) {

@@ -297,6 +297,14 @@ private fun AddEditGoalSheet(state: GoalsUiState, viewModel: GoalsViewModel) {
             Spacer(Modifier.height(Spacing.sm))
 
             CurrencyTextField(
+                amountCents = state.goalCurrentCents,
+                onAmountChange = { viewModel.onGoalCurrentChange(it) },
+                label = "Valor atual",
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(Spacing.sm))
+
+            CurrencyTextField(
                 amountCents = state.goalContribCents,
                 onAmountChange = { viewModel.onGoalContribChange(it) },
                 label = "Contribuição mensal",

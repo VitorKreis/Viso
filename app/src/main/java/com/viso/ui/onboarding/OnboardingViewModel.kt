@@ -181,7 +181,7 @@ class OnboardingViewModel @Inject constructor(
                 val savingsBudget = state.rule.savingsCents
                 goalRepo.insert(
                     Goal(
-                        id = UUID.randomUUID().toString(),
+                        id = "emergency_fund",
                         name = "Reserva de emergência",
                         targetAmountCents = emergencyTarget,
                         currentAmountCents = 0L,

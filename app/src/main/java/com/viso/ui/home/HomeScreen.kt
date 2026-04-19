@@ -75,6 +75,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onNavigateToConfig: () -> Unit,
+    onNavigateToReports: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -106,6 +107,9 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToReports) {
+                        Icon(Icons.Rounded.Savings, contentDescription = "Relatórios", tint = TextSecondary)
+                    }
                     IconButton(onClick = onNavigateToConfig) {
                         Icon(Icons.Rounded.Settings, contentDescription = "Configurações", tint = TextSecondary)
                     }

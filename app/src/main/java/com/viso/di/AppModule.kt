@@ -27,6 +27,13 @@ object AppModule {
             .addMigrations(object : androidx.room.migration.Migration(1, 2) {
                 override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
                     database.execSQL("ALTER TABLE bills ADD COLUMN isRecurring INTEGER NOT NULL DEFAULT 0")
+                    // Consolidate any duplicate emergency fund goals into a single row with fixed id
+                    database.execSQL(
+                        "INSERT OR REPLACE INTO goals (id, name, targetAmountCents, currentAmountCents, monthlyContributionCents, isEmergencyFund, color, createdAt) " +
+                                "SELECT 'emergency_fund', name, targetAmountCents, currentAmountCents, monthlyContributionCents, isEmergencyFund, color, createdAt " +
+                                "FROM goals WHERE isEmergencyFund = 1 ORDER BY createdAt ASC LIMIT 1"
+                    )
+                    database.execSQL("DELETE FROM goals WHERE isEmergencyFund = 1 AND id <> 'emergency_fund'")
                 }
             })
             .build()

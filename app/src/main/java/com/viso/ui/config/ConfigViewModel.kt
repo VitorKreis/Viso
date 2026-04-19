@@ -267,7 +267,7 @@ class ConfigViewModel @Inject constructor(
 
                 goalRepo.insert(
                     com.viso.domain.model.Goal(
-                        id = java.util.UUID.randomUUID().toString(),
+                        id = "emergency_fund",
                         name = "Reserva de emergência",
                         targetAmountCents = emergencyTarget,
                         currentAmountCents = 0L,

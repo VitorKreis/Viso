@@ -36,8 +36,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.Switch
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.ArrowBackIos
+import androidx.compose.material.icons.rounded.ArrowForwardIos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viso.ui.components.BillCard
@@ -46,6 +52,7 @@ import com.viso.ui.components.EmptyState
 import com.viso.ui.components.VisoCategoryPicker
 import com.viso.ui.components.VisoBottomSheet
 import com.viso.ui.components.VisoNumberPicker
+import com.viso.ui.components.VisoYearMonthPicker
 import com.viso.ui.theme.AccentBlue
 import com.viso.ui.theme.AccentRed
 import com.viso.ui.theme.BgApp
@@ -179,6 +186,13 @@ fun BillsScreen(viewModel: BillsViewModel = hiltViewModel()) {
         if (state.showSheet) {
             AddEditBillSheet(state, viewModel)
         }
+
+        if (state.showMonthPicker) {
+            VisoYearMonthPicker(initial = state.billMonth, onDismiss = { viewModel.hideMonthPicker() }, onConfirm = {
+                viewModel.onBillMonthChange(it)
+                viewModel.hideMonthPicker()
+            })
+        }
     }
 }
 
@@ -238,6 +252,19 @@ private fun AddEditBillSheet(state: BillsUiState, viewModel: BillsViewModel) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Recorrente mensal", color = TextPrimary)
                 Switch(checked = state.billIsRecurring, onCheckedChange = { viewModel.onBillIsRecurringChange(it) })
+            }
+
+            Spacer(Modifier.height(Spacing.sm))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Mês associado", color = TextPrimary)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = try { java.time.YearMonth.parse(state.billMonth).toString() } catch (_: Exception) { java.time.YearMonth.now().toString() },
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.clickable { viewModel.showMonthPicker() }
+                    )
+                }
             }
 
             Spacer(Modifier.height(Spacing.lg))

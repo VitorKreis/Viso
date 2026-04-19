@@ -131,4 +131,26 @@ class BillRepositoryTest {
         assertEquals(1, all.size)
         assertEquals(true, all[0].isRecurring)
     }
+
+    @Test
+    fun testPaidMonthPersisted() = runBlocking {
+        val dao = FakeBillDao()
+        val repo = BillRepository(dao)
+
+        val bill = Bill(
+            id = "m-1",
+            name = "Magazine",
+            amountCents = 1500L,
+            dueDay = 10,
+            category = "outro",
+            isPaid = false,
+            paidMonth = "2026-04",
+            createdAt = 1L
+        )
+
+        repo.insert(bill)
+        val all = repo.getAllBills()
+        assertEquals(1, all.size)
+        assertEquals("2026-04", all[0].paidMonth)
+    }
 }
