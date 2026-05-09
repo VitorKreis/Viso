@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Payments
 import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -161,8 +162,14 @@ fun BillCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // Show installment info if applicable
+                val subtitle = if (bill.isInstallment && bill.installmentNumber != null && bill.totalInstallments != null) {
+                    "Parcela ${bill.installmentNumber}/${bill.totalInstallments} · Dia ${bill.dueDay}"
+                } else {
+                    "Dia ${bill.dueDay} · ${bill.category}"
+                }
                 Text(
-                    text = "Dia ${bill.dueDay} · ${bill.category}",
+                    text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary,
                     maxLines = 1,
@@ -171,13 +178,23 @@ fun BillCard(
             }
 
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = formatCurrency(bill.amountCents),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (bill.isInstallment) {
+                        Icon(
+                            imageVector = Icons.Rounded.Payments,
+                            contentDescription = "Parcela",
+                            tint = AccentBlue.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Text(
+                        text = formatCurrency(bill.amountCents),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 StatusBadge(status = status)
             }
             // Actions: mark paid, delete

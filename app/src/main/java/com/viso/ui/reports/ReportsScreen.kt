@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,6 +38,7 @@ import com.viso.ui.theme.BgCard
 import com.viso.ui.theme.Spacing
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun ReportsScreen(
     onBack: () -> Unit,
     viewModel: ReportsViewModel = hiltViewModel()

@@ -31,6 +31,8 @@ object ConfigKeys {
     val PAYDAY1 = intPreferencesKey("payday1")
     val SALARY2_CENTS = longPreferencesKey("salary2_cents")
     val PAYDAY2 = intPreferencesKey("payday2")
+    val CURRENT_STREAK = intPreferencesKey("current_streak")
+    val MAX_STREAK = intPreferencesKey("max_streak")
 }
 
 @Singleton
@@ -52,7 +54,9 @@ class ConfigDataStore @Inject constructor(
             salary1Cents = prefs[ConfigKeys.SALARY1_CENTS] ?: 0L,
             payday1 = prefs[ConfigKeys.PAYDAY1] ?: 5,
             salary2Cents = prefs[ConfigKeys.SALARY2_CENTS] ?: 0L,
-            payday2 = prefs[ConfigKeys.PAYDAY2] ?: 20
+            payday2 = prefs[ConfigKeys.PAYDAY2] ?: 20,
+            currentStreak = prefs[ConfigKeys.CURRENT_STREAK] ?: 0,
+            maxStreak = prefs[ConfigKeys.MAX_STREAK] ?: 0
         )
     }
 
@@ -96,6 +100,13 @@ class ConfigDataStore @Inject constructor(
 
     suspend fun updatePayday2(day: Int) {
         context.dataStore.edit { it[ConfigKeys.PAYDAY2] = day }
+    }
+
+    suspend fun updateStreak(current: Int, max: Int) {
+        context.dataStore.edit {
+            it[ConfigKeys.CURRENT_STREAK] = current
+            it[ConfigKeys.MAX_STREAK] = max
+        }
     }
 
     suspend fun clearAll() {

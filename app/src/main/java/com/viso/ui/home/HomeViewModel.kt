@@ -10,8 +10,10 @@ import com.viso.domain.model.Config
 import com.viso.domain.model.ExtraIncome
 import com.viso.domain.model.SalaryMode
 import com.viso.domain.model.SalaryPart
+import com.viso.domain.model.StreakInfo
 import com.viso.domain.model.distributeBillsByPart
 import com.viso.domain.usecase.CalculateRuleUseCase
+import com.viso.domain.usecase.CalculateStreaksUseCase
 import com.viso.domain.usecase.FinancialRule
 import com.viso.domain.usecase.MonthlyResetUseCase
 import com.viso.domain.usecase.billsMargin
@@ -47,7 +49,8 @@ data class HomeUiState(
     val extraName: String = "",
     val extraAmountCents: Long = 0L,
     val part1: SalaryPart? = null,
-    val part2: SalaryPart? = null
+    val part2: SalaryPart? = null,
+    val streakInfo: StreakInfo? = null
 )
 
 @HiltViewModel
@@ -56,7 +59,8 @@ class HomeViewModel @Inject constructor(
     private val billRepo: BillRepository,
     private val extraRepo: ExtraIncomeRepository,
     private val resetUseCase: MonthlyResetUseCase,
-    private val calculateRule: CalculateRuleUseCase
+    private val calculateRule: CalculateRuleUseCase,
+    private val calculateStreaks: CalculateStreaksUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -78,8 +82,9 @@ class HomeViewModel @Inject constructor(
             combine(
                 configRepo.configFlow,
                 billRepo.getAllBillsFlow(),
-                extraRepo.getByMonthFlow(currentMonth)
-            ) { config, bills, extras ->
+                extraRepo.getByMonthFlow(currentMonth),
+                calculateStreaks()
+            ) { config, bills, extras, streakInfo ->
                 val extraTotal = extras.sumOf { it.amountCents }
                 val effectiveSalary = config.effectiveSalaryCents
                 val rule = calculateRule(effectiveSalary, extraTotal)
@@ -124,7 +129,8 @@ class HomeViewModel @Inject constructor(
                     extraTotalCents = extraTotal,
                     isLoading = false,
                     part1 = part1,
-                    part2 = part2
+                    part2 = part2,
+                    streakInfo = streakInfo
                 )
             }.collect { state ->
                 _uiState.value = state

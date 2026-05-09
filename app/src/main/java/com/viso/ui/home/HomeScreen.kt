@@ -2,6 +2,7 @@ package com.viso.ui.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -18,6 +20,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -76,6 +79,7 @@ import java.util.Locale
 fun HomeScreen(
     onNavigateToConfig: () -> Unit,
     onNavigateToReports: () -> Unit,
+    onNavigateToStreaks: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -178,6 +182,17 @@ fun HomeScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // Block 1.5 - Streak Card (if has streak)
+            if (state.streakInfo?.currentStreak ?: 0 > 0) {
+                item {
+                    StreakSummaryCard(
+                        streak = state.streakInfo?.currentStreak ?: 0,
+                        maxStreak = state.streakInfo?.maxStreak ?: 0,
+                        onClick = onNavigateToStreaks
+                    )
                 }
             }
 
@@ -404,6 +419,67 @@ private fun SalaryPartCard(
                 color = if (part.remainingCents >= 0) AccentGreen else AccentRed,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun StreakSummaryCard(
+    streak: Int,
+    maxStreak: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val fireIcon = when {
+        streak >= 24 -> "👑"
+        streak >= 12 -> "🔥🔥🔥"
+        streak >= 6 -> "🔥🔥"
+        streak >= 3 -> "🔥"
+        else -> "🔥"
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = AccentBlue.copy(alpha = 0.1f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
+            ) {
+                Text(
+                    text = fireIcon,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Column {
+                    Text(
+                        text = "$streak ${if (streak == 1) "mês" else "meses"} em dia!",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "Recorde: $maxStreak • Toque para ver conquistas",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                }
+            }
+
+            Icon(
+                imageVector = Icons.Rounded.Savings,
+                contentDescription = null,
+                tint = AccentBlue,
+                modifier = Modifier.size(24.dp)
             )
         }
     }

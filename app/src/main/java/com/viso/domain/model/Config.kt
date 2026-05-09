@@ -12,7 +12,9 @@ data class Config(
     val salary1Cents: Long = 0L,
     val payday1: Int = 5,
     val salary2Cents: Long = 0L,
-    val payday2: Int = 20
+    val payday2: Int = 20,
+    val currentStreak: Int = 0,
+    val maxStreak: Int = 0
 ) {
     val effectiveSalaryCents: Long
         get() = if (salaryMode == SalaryMode.SPLIT) salary1Cents + salary2Cents else salaryCents

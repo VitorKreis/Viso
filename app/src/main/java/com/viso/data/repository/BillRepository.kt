@@ -45,6 +45,11 @@ class BillRepository @Inject constructor(
     suspend fun markAsUnpaid(id: String) =
         billDao.markAsUnpaid(id)
 
+    suspend fun getInstallmentBillsByParentId(parentId: String): List<Bill> =
+        billDao.getAllBillsList()
+            .filter { it.parentInstallmentId == parentId }
+            .map { it.toDomain() }
+
     private fun BillEntity.toDomain() = Bill(
         id = id,
         name = name,
@@ -53,9 +58,12 @@ class BillRepository @Inject constructor(
         category = category,
         isPaid = isPaid,
         paidMonth = paidMonth,
-        createdAt = createdAt
-        ,
-        isRecurring = isRecurring
+        createdAt = createdAt,
+        isRecurring = isRecurring,
+        isInstallment = isInstallment,
+        installmentNumber = installmentNumber,
+        totalInstallments = totalInstallments,
+        parentInstallmentId = parentInstallmentId
     )
 
     private fun Bill.toEntity() = BillEntity(
@@ -66,8 +74,11 @@ class BillRepository @Inject constructor(
         category = category,
         isPaid = isPaid,
         paidMonth = paidMonth,
-        createdAt = createdAt
-        ,
-        isRecurring = isRecurring
+        createdAt = createdAt,
+        isRecurring = isRecurring,
+        isInstallment = isInstallment,
+        installmentNumber = installmentNumber,
+        totalInstallments = totalInstallments,
+        parentInstallmentId = parentInstallmentId
     )
 }

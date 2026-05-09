@@ -18,6 +18,7 @@
 - [Design System](#-design-system)
 - [Requisitos](#-requisitos)
 - [Build & Instalação](#-build--instalação)
+- [Changelog](#-changelog)
 - [Licença](#-licença)
 
 <br>
@@ -40,14 +41,26 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 - Próximos vencimentos (7 dias)
 - Suporte a entradas extras no mês
 - Cards de salário dividido com destaque do próximo pagamento
+- **🔥 Card de Streak** — Mostra quantos meses você pagou tudo em dia
 
 ### 📄 Contas Fixas (Bills)
 - Cadastro de contas com nome, valor, dia de vencimento e categoria
+- **🔄 Contas Parceladas** — Cadastre compras parceladas (2-48x), o app calcula e gera as parcelas automaticamente
 - 8 categorias: Moradia, Alimentação, Transporte, Saúde, Educação, Utilidade, Lazer, Outro
 - Agrupamento por categoria com sticky headers
 - Swipe para marcar como pago (→) ou excluir (←)
 - Status automático: Pago, Hoje, Próximo, Atrasado, Futuro
+- **🎛️ Filtros** — Visualize: Todas | Pendentes | Pagas
+- **🎉 Mensagem de sucesso** quando todas as contas estão pagas
 - Picker personalizado de dia (drum-roll) e categoria (chips com ícones)
+- Badge visual para contas parceladas (Parcela X/Y)
+
+### 📊 Gráfico por Categoria
+- Acesse pela tela de Contas (ícone 🥧)
+- Gráfico de pizza animado mostrando distribuição de gastos
+- Cores distintas por categoria
+- Lista detalhada com valores e percentuais
+- Total consolidado
 
 ### 🎯 Metas de Poupança (Goals)
 - Até 3 metas simultâneas
@@ -56,6 +69,23 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 - Contribuição mensal configurável
 - Estimativa de meses para conclusão
 - Adicionar valores avulsos a qualquer momento
+- Edição e exclusão de metas
+
+### 🏆 Conquistas & Streaks
+- **Streak** — Contador de meses pagando tudo em dia
+- **10 Conquistas** para desbloquear:
+  - 🔥 Fogo Baixo (3 meses)
+  - 🔥🔥 Fogo Médio (6 meses)
+  - 🔥🔥🔥 Fogo Alto (12 meses)
+  - 👑 Mestre da Disciplina (24 meses)
+  - 🎯 Mestre do 70-20-10
+  - 💰 Economizador
+  - 📈 Investidor
+  - 🏆 Reserva Completa
+  - 📝 Primeiro Passo
+  - 📋 Organizador
+- Progresso visual nas conquistas pendentes
+- Raridades: Comum, Rara, Épica, Lendária
 
 ### 📅 Agenda
 - Calendário mensal interativo com eventos coloridos
@@ -63,6 +93,11 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 - Lista de eventos do dia selecionado
 - Navegação entre meses
 - Exibição dos dias de recebimento (parcela 1 e 2 no modo dividido)
+
+### 📈 Relatórios
+- Histórico mensal de gastos
+- Comparativo mês a mês
+- Filtros por tipo: Consolidado, Contas, Gastos, Poupança
 
 ### ⚙️ Configurações
 - Modo de salário: parcela única ou duas parcelas
@@ -116,6 +151,15 @@ Quando configurado em duas parcelas, o app:
 - Cada conta é atribuída à parcela com data de recebimento mais próxima (anterior) ao vencimento
 - Exibe cards separados mostrando quanto cada parcela cobre e o que sobra
 
+### Contas Parceladas
+
+Cadastre compras parceladas (ex: TV 12x de R$ 200):
+- Informe o valor total e número de parcelas (2-48x)
+- O app calcula automaticamente o valor de cada parcela
+- A primeira parcela recebe o resto da divisão para bater o total exato
+- Gera automaticamente as contas mensais no reset do mês
+- Visualização clara: "Parcela 3/12" em cada conta
+
 <br>
 
 ## 🏗 Arquitetura
@@ -141,7 +185,7 @@ O projeto segue **MVVM** com Clean Architecture simplificada:
 **Padrões:**
 - **MVVM** — ViewModels expõem `StateFlow<UiState>` consumidos pelas Screens
 - **Repository Pattern** — Abstração sobre Room DAOs e DataStore
-- **Use Cases** — Lógica de negócio isolada (cálculo de regra, reset mensal, notificações)
+- **Use Cases** — Lógica de negócio isolada (cálculo de regra, reset mensal, notificações, streaks)
 - **Dependency Injection** — Hilt com `@HiltViewModel` e `@Inject constructor`
 - **Reactive Streams** — `Flow` do Room + `combine()` nos ViewModels
 - **Offline-first** — Todos os dados persistidos localmente (Room + DataStore)
@@ -159,65 +203,81 @@ app/src/main/java/com/viso/
 │   ├── datastore/
 │   │   └── ConfigDataStore.kt     # Preferências do usuário (DataStore)
 │   ├── db/
-│   │   ├── VisoDB.kt              # Room Database (v1)
+│   │   ├── VisoDB.kt              # Room Database (v4)
 │   │   ├── dao/
+│   │   │   ├── AchievementDao.kt  # 🏆 Conquistas
 │   │   │   ├── BillDao.kt
 │   │   │   ├── ExtraIncomeDao.kt
 │   │   │   ├── GoalDao.kt
+│   │   │   ├── InstallmentBillDao.kt  # 🔄 Parcelamentos
 │   │   │   └── MonthHistoryDao.kt
 │   │   └── entity/
+│   │       ├── AchievementEntity.kt   # 🏆
 │   │       ├── BillEntity.kt
 │   │       ├── ExtraIncomeEntity.kt
 │   │       ├── GoalEntity.kt
+│   │       ├── InstallmentBillEntity.kt  # 🔄
 │   │       └── MonthHistoryEntity.kt
 │   └── repository/
+│       ├── AchievementRepository.kt   # 🏆
 │       ├── BillRepository.kt
 │       ├── ConfigRepository.kt
 │       ├── ExtraIncomeRepository.kt
 │       ├── GoalRepository.kt
-│       └── HistoryRepository.kt
+│       ├── HistoryRepository.kt
+│       └── InstallmentBillRepository.kt  # 🔄
 │
 ├── di/
 │   └── AppModule.kt               # Hilt module (@Provides)
 │
 ├── domain/
 │   ├── model/
+│   │   ├── Achievement.kt         # 🏆 Conquistas
 │   │   ├── Bill.kt
-│   │   ├── Config.kt              # SalaryMode (SINGLE/SPLIT)
+│   │   ├── CategorySpending.kt    # 📊 Gráfico
+│   │   ├── Config.kt
 │   │   ├── ExtraIncome.kt
-│   │   ├── FinancialSummary.kt    # SalaryPart, distributeBillsByPart()
-│   │   └── Goal.kt
+│   │   ├── FinancialSummary.kt
+│   │   ├── Goal.kt
+│   │   ├── InstallmentBill.kt     # 🔄 Parcelas
+│   │   └── StreakInfo.kt          # 🔥 Streaks
 │   └── usecase/
-│       ├── CalculateRuleUseCase.kt # Regra 70-20-10
-│       ├── Calculations.kt        # billsMargin, emergencyFundTarget, etc.
-│       ├── GetUpcomingBillsUseCase.kt
+│       ├── CalculateRuleUseCase.kt
+│       ├── GenerateInstallmentBillsUseCase.kt  # 🔄
+│       ├── GetCategoryDistributionUseCase.kt   # 📊
 │       ├── MonthlyResetUseCase.kt
-│       └── ScheduleNotificationsUseCase.kt
+│       ├── ScheduleNotificationsUseCase.kt
+│       └── StreakUseCases.kt      # 🔥🏆 Streaks & Conquistas
 │
 ├── notification/
-│   ├── BillAlarmReceiver.kt       # Receiver de alarmes
-│   ├── BootReceiver.kt            # Reagenda após reboot
-│   ├── BootReceiverEntryPoint.kt  # Hilt entry point
-│   └── NotificationHelper.kt     # Criação de notificações
+│   ├── BillAlarmReceiver.kt
+│   ├── BootReceiver.kt
+│   ├── BootReceiverEntryPoint.kt
+│   └── NotificationHelper.kt
 │
 └── ui/
     ├── agenda/
     │   ├── AgendaScreen.kt
     │   └── AgendaViewModel.kt
     ├── bills/
-    │   ├── BillsScreen.kt
+    │   ├── BillsScreen.kt         # 🎛️ Filtros + Parcelas
     │   └── BillsViewModel.kt
+    ├── categorychart/             # 📊 Gráfico
+    │   ├── CategoryChartScreen.kt
+    │   └── CategoryChartViewModel.kt
     ├── components/
-    │   ├── BillCard.kt            # Swipe-to-dismiss card
-    │   ├── EmptyState.kt          # Estado vazio genérico
-    │   ├── GoalCard.kt            # Card de meta com progresso
-    │   ├── MonthCalendar.kt       # Calendário mensal responsivo
-    │   ├── RuleBar.kt             # Barra visual 70-20-10
-    │   ├── StatusBadge.kt         # Badge de status da conta
-    │   ├── SummaryGrid.kt         # Grid de resumo financeiro
-    │   ├── VisoBottomSheet.kt     # Bottom sheet com safe area
-    │   ├── VisoCategoryPicker.kt  # Seletor de categoria (FilterChips)
-    │   └── VisoNumberPicker.kt    # Picker drum-roll numérico
+    │   ├── AchievementComponents.kt  # 🏆 StreakBadge, AchievementCard
+    │   ├── BillCard.kt
+    │   ├── EmptyState.kt
+    │   ├── GoalCard.kt
+    │   ├── MonthCalendar.kt
+    │   ├── PieChart.kt            # 📊
+    │   ├── RuleBar.kt
+    │   ├── StatusBadge.kt
+    │   ├── SummaryGrid.kt
+    │   ├── VisoBottomSheet.kt
+    │   ├── VisoCategoryPicker.kt
+    │   └── VisoNumberPicker.kt
     ├── config/
     │   ├── ConfigScreen.kt
     │   └── ConfigViewModel.kt
@@ -225,21 +285,27 @@ app/src/main/java/com/viso/
     │   ├── GoalsScreen.kt
     │   └── GoalsViewModel.kt
     ├── home/
-    │   ├── HomeScreen.kt
+    │   ├── HomeScreen.kt          # 🔥 Card Streak
     │   └── HomeViewModel.kt
     ├── navigation/
-    │   └── VisoNavGraph.kt        # NavHost + bottom navigation
+    │   └── VisoNavGraph.kt
     ├── onboarding/
     │   ├── OnboardingScreen.kt
     │   ├── OnboardingUiState.kt
     │   └── OnboardingViewModel.kt
+    ├── reports/
+    │   ├── ReportsScreen.kt
+    │   └── ReportsViewModel.kt
+    ├── streaks/                   # 🏆 Tela de Conquistas
+    │   ├── StreaksScreen.kt
+    │   └── StreaksViewModel.kt
     ├── theme/
     │   ├── Color.kt
     │   ├── Shape.kt
     │   ├── Theme.kt
     │   └── Typography.kt
     └── utils/
-        └── FormatCurrency.kt      # formatCurrency() → "R$ 1.234,56"
+        └── FormatCurrency.kt
 ```
 
 <br>
@@ -271,19 +337,19 @@ app/src/main/java/com/viso/
 
 ### Config
 ```kotlin
-enum class SalaryMode { SINGLE, SPLIT }
-
 data class Config(
-    val salaryCents: Long,          // Salário em centavos (modo único)
-    val payday: Int,                // Dia de recebimento
-    val onboardingDone: Boolean,    // Onboarding finalizado
-    val notifDaysBefore: Int,       // Dias de antecedência para notificação
-    val lastResetMonth: String,     // Último mês resetado
-    val salaryMode: SalaryMode,     // Modo: SINGLE ou SPLIT
-    val salary1Cents: Long,         // Parcela 1 (modo dividido)
-    val payday1: Int,               // Dia recebimento parcela 1
-    val salary2Cents: Long,         // Parcela 2 (modo dividido)
-    val payday2: Int                // Dia recebimento parcela 2
+    val salaryCents: Long,
+    val payday: Int,
+    val onboardingDone: Boolean,
+    val notifDaysBefore: Int,
+    val lastResetMonth: String,
+    val salaryMode: SalaryMode,     // SINGLE ou SPLIT
+    val salary1Cents: Long,
+    val payday1: Int,
+    val salary2Cents: Long,
+    val payday2: Int,
+    val currentStreak: Int,         // 🔥 Streak atual
+    val maxStreak: Int              // 🔥 Recorde
 )
 ```
 
@@ -291,38 +357,61 @@ data class Config(
 ```kotlin
 data class Bill(
     val id: String,
-    val name: String,               // Nome da conta
-    val amountCents: Long,          // Valor em centavos
-    val dueDay: Int,                // Dia de vencimento (1-28)
-    val category: String,           // Categoria
-    val isPaid: Boolean,            // Status de pagamento
-    val paidMonth: String,          // Mês do pagamento
-    val createdAt: Long             // Timestamp de criação
+    val name: String,
+    val amountCents: Long,
+    val dueDay: Int,
+    val category: String,
+    val isPaid: Boolean,
+    val paidMonth: String,
+    val createdAt: Long,
+    val isRecurring: Boolean = false,
+    val isInstallment: Boolean = false,       // 🔄 É parcela?
+    val installmentNumber: Int? = null,       // 🔄 Número da parcela
+    val totalInstallments: Int? = null,       // 🔄 Total de parcelas
+    val parentInstallmentId: String? = null   // 🔄 ID do parcelamento
 )
 ```
 
-### Goal (Meta de Poupança)
+### InstallmentBill (Parcelamento)
 ```kotlin
-data class Goal(
+data class InstallmentBill(
     val id: String,
     val name: String,
-    val targetAmountCents: Long,        // Meta total
-    val currentAmountCents: Long,       // Valor acumulado
-    val monthlyContributionCents: Long, // Contribuição mensal
-    val isEmergencyFund: Boolean,       // É reserva de emergência
-    val color: String,                  // Cor do card (blue/teal/green)
+    val totalAmountCents: Long,
+    val installmentAmountCents: Long,
+    val totalInstallments: Int,
+    val startMonth: String,
+    val category: String,
+    val dueDay: Int,
+    val isActive: Boolean,
     val createdAt: Long
 )
 ```
 
-### SalaryPart (Parcela do Salário)
+### Achievement (Conquista)
 ```kotlin
-data class SalaryPart(
-    val amountCents: Long,              // Valor da parcela
-    val payday: Int,                    // Dia de recebimento
-    val billsAssigned: List<Bill>,      // Contas atribuídas
-    val totalAssignedCents: Long,       // Total das contas
-    val remainingCents: Long            // Sobra após contas
+data class Achievement(
+    val id: String,
+    val type: AchievementType,      // STREAK, MILESTONE, SAVING
+    val title: String,
+    val description: String,
+    val icon: String,
+    val isUnlocked: Boolean,
+    val unlockedAt: Long?,
+    val progress: Int,
+    val target: Int,
+    val rarity: Rarity              // COMMON, RARE, EPIC, LEGENDARY
+)
+```
+
+### StreakInfo
+```kotlin
+data class StreakInfo(
+    val currentStreak: Int,
+    val maxStreak: Int,
+    val lastMonthCompleted: Boolean,
+    val thisMonthProgress: Float,
+    val daysRemaining: Int
 )
 ```
 
@@ -330,20 +419,21 @@ data class SalaryPart(
 
 ## 🗄 Banco de Dados
 
-**Room Database** — `VisoDB` (versão 1)
+**Room Database** — `VisoDB` (versão 4)
 
 | Tabela | Entidade | Descrição |
 |--------|----------|-----------|
 | `bills` | `BillEntity` | Contas fixas mensais |
+| `installment_bills` | `InstallmentBillEntity` | 🔄 Parcelamentos ativos |
 | `goals` | `GoalEntity` | Metas de poupança |
+| `achievements` | `AchievementEntity` | 🏆 Conquistas do usuário |
 | `extra_incomes` | `ExtraIncomeEntity` | Entradas extras do mês |
 | `month_history` | `MonthHistoryEntity` | Histórico mensal |
 
-**Operações principais:**
-- `BillDao` — CRUD + `resetAllPaidStatus()` + `markAsPaid()`
-- `GoalDao` — CRUD + `getEmergencyFund()` + `getGoalCount()`
-- `ExtraIncomeDao` — CRUD por mês
-- `MonthHistoryDao` — Inserir/consultar histórico
+**Migrations:**
+- v1 → v2: Adiciona `isRecurring` na tabela bills
+- v2 → v3: Adiciona tabela `installment_bills` e colunas de parcela em `bills`
+- v3 → v4: Adiciona tabela `achievements`
 
 <br>
 
@@ -361,12 +451,12 @@ data class SalaryPart(
 │                  └── 📅 Agenda           │
 │                                          │
 │  HomeScreen ──→ ⚙️ Configurações         │
+│              → 📈 Relatórios             │
+│              → 🔥 Conquistas             │
+│                                          │
+│  BillsScreen ──→ 📊 Gráfico Categorias   │
 └──────────────────────────────────────────┘
 ```
-
-- **Root NavController**: Onboarding → Main flow
-- **Tab NavController**: Navegação entre as 4 abas principais
-- **Bottom Navigation**: `NavigationBar` com 4 itens
 
 <br>
 
@@ -392,36 +482,18 @@ O app utiliza um tema escuro exclusivo com paleta azul:
 | `TextSecondary` | `#7A98BB` | Texto secundário |
 | `TextMuted` | `#4A6380` | Texto desabilitado |
 
-### Tipografia
+### Cores do Gráfico de Pizza
 
-| Estilo | Tamanho | Peso |
-|--------|---------|------|
-| `displayLarge` | 36sp | Bold |
-| `headlineMedium` | 22sp | SemiBold |
-| `titleMedium` | 15sp | Medium |
-| `bodyMedium` | 13sp | Normal |
-| `labelSmall` | 11sp | Medium |
-
-### Espaçamento
-
-| Token | Valor |
-|-------|-------|
-| `xs` | 4dp |
-| `sm` | 8dp |
-| `md` | 12dp |
-| `lg` | 16dp |
-| `xl` | 20dp |
-| `xxl` | 24dp |
-| `xxxl` | 32dp |
-
-### Cantos Arredondados
-
-| Tamanho | Raio |
-|---------|------|
-| Small | 8dp |
-| Medium | 12dp |
-| Large | 16dp |
-| Extra Large | 20dp |
+| Categoria | Cor |
+|-----------|-----|
+| Moradia | `#FF6B6B` (Vermelho coral) |
+| Alimentação | `#4ECDC4` (Turquesa) |
+| Transporte | `#45B7D1` (Azul claro) |
+| Saúde | `#96CEB4` (Verde sage) |
+| Educação | `#FFEAA7` (Amarelo) |
+| Utilidade | `#DDA0DD` (Lilás) |
+| Lazer | `#FFB347` (Laranja) |
+| Outro | `#B0C4DE` (Azul acinzentado) |
 
 <br>
 
@@ -469,57 +541,78 @@ O APK gerado estará em `app/build/outputs/apk/`.
 
 <br>
 
+## 📝 Changelog
+
+### v2.0.0 (Maio/2026)
+
+#### ✨ Novas Funcionalidades
+
+**🔄 Contas Parceladas**
+- Cadastro de compras parceladas (2-48x)
+- Cálculo automático do valor das parcelas
+- Geração automática mensal das contas
+- Visualização "Parcela X/Y" nas contas
+- Badge indicativo de parcelamento
+
+**📊 Gráfico de Pizza por Categoria**
+- Acesso via tela de Contas
+- Visualização animada da distribuição de gastos
+- Cores distintas por categoria
+- Lista detalhada com percentuais
+
+**🏆 Sistema de Streaks & Conquistas**
+- Contador de meses pagando em dia
+- 10 conquistas para desbloquear
+- Progresso visual em conquistas pendentes
+- Card de streak no dashboard
+- Tela dedicada de conquistas
+
+**🎛️ Filtros de Contas**
+- Filtros: Todas | Pendentes | Pagas
+- Contadores em tempo real
+- Mensagem de sucesso quando todas pagas
+- Contas pagas podem ser ocultadas
+
+#### 🗄️ Database
+- Migration v3 → v4
+- Nova tabela: `achievements`
+- Novos campos em `Config`: `currentStreak`, `maxStreak`
+
+#### 🏗️ Arquitetura
+- Novos UseCases para Streaks e Conquistas
+- Repository pattern para Achievements
+- Componentes reutilizáveis: StreakBadge, AchievementCard, PieChart
+
+### v1.1.0 (Abril/2026)
+
+#### ✨ Novas Funcionalidades
+- Recorrência mensal de contas (`isRecurring`)
+- Edição e exclusão de metas
+
+#### 🗄️ Database
+- Migration v1 → v2
+- Coluna `isRecurring` adicionada à tabela `bills`
+
+#### 🧪 Testes
+- Testes unitários para BillRepository
+
+### v1.0.0 (2025)
+
+#### ✨ Funcionalidades Iniciais
+- Dashboard com regra 70-20-10
+- Cadastro de contas fixas
+- Metas de poupança
+- Agenda com calendário
+- Configurações
+- Onboarding
+- Notificações
+
+<br>
+
 ## 📄 Licença
 
 Este projeto é de uso pessoal.
 
 ---
 
-**Viso v1.0.0** — Feito com Kotlin + Jetpack Compose
-
-## 🧾 Notas do Desenvolvedor (recente)
-
-Mudanças importantes (abril/2026):
-
-- Recorrência mensal de contas: adicionada a flag `isRecurring` ao modelo/entidade `Bill` e mapeada pelo repositório. Arquivos principais: [app/src/main/java/com/viso/ui/bills/BillsScreen.kt](app/src/main/java/com/viso/ui/bills/BillsScreen.kt), [app/src/main/java/com/viso/ui/bills/BillsViewModel.kt](app/src/main/java/com/viso/ui/bills/BillsViewModel.kt), [app/src/main/java/com/viso/data/repository/BillRepository.kt](app/src/main/java/com/viso/data/repository/BillRepository.kt), [app/src/main/java/com/viso/domain/model/Bill.kt](app/src/main/java/com/viso/domain/model/Bill.kt), [app/src/main/java/com/viso/data/db/entity/BillEntity.kt](app/src/main/java/com/viso/data/db/entity/BillEntity.kt).
-
-- Migração Room (v1 → v2): o schema do DB foi incrementado para `version = 2` e foi adicionada uma Migration(1,2) em [app/src/main/java/com/viso/di/AppModule.kt](app/src/main/java/com/viso/di/AppModule.kt) que cria a coluna `isRecurring` com valor padrão `0`.
-
-- Testes unitários: teste isolado incluído em [app/src/test/java/com/viso/data/repository/BillRepositoryTest.kt](app/src/test/java/com/viso/data/repository/BillRepositoryTest.kt) que valida persistência de `isRecurring` e deduplicação.
-
-- Metas (Goals): edição e exclusão de metas já estão expostas na UI em [app/src/main/java/com/viso/ui/goals/GoalsScreen.kt](app/src/main/java/com/viso/ui/goals/GoalsScreen.kt) e [app/src/main/java/com/viso/ui/goals/GoalsViewModel.kt](app/src/main/java/com/viso/ui/goals/GoalsViewModel.kt).
-
-### Como testar localmente
-
-1. Rodar testes unitários:
-
-```bash
-./gradlew test --no-daemon
-```
-
-2. Gerar e instalar o APK de debug (dispositivo conectado; aceite o prompt de depuração USB):
-
-```bash
-./gradlew installDebug --no-daemon --console=plain
-# Se o adb não estiver no PATH, use:
-"C:\Users\Usuario\AppData\Local\Android\Sdk\platform-tools\adb" devices -l
-```
-
-3. QA rápido após instalar:
-- Criar uma nova conta e marcar a opção "Recorrente mensal"; confirmar que o registro é salvo.
-- Marcar a conta como paga; confirmar que o campo `paidMonth` foi preenchido com o mês atual.
-- Criar/editar/excluir uma meta para validar `GoalsScreen`.
-
-### Commit & Push
-
-```bash
-git add .
-git commit -m "feat: add recurring monthly bills, Room migration v1->v2, tests"
-git push origin <sua-branch>
-```
-
-### Próximos passos recomendados
-
-- Decidir comportamento de recorrência (mostrar como fixa todo mês vs. gerar ocorrências mensais históricas).
-- Adicionar interface para editar `paidMonth` manualmente quando necessário.
-- Atualizar changelog e versão do app se for um release.
+**Viso v2.0.0** — Feito com Kotlin + Jetpack Compose ❤️

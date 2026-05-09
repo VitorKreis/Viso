@@ -13,7 +13,8 @@ class MonthlyResetUseCase @Inject constructor(
     private val billRepo: BillRepository,
     private val extraIncomeRepo: ExtraIncomeRepository,
     private val historyRepo: HistoryRepository,
-    private val scheduleNotif: ScheduleNotificationsUseCase
+    private val scheduleNotif: ScheduleNotificationsUseCase,
+    private val generateInstallmentBills: GenerateInstallmentBillsUseCase
 ) {
     suspend operator fun invoke() {
         val config = configRepo.getConfig()
@@ -42,6 +43,10 @@ class MonthlyResetUseCase @Inject constructor(
         }
 
         configRepo.updateLastResetMonth(currentMonth)
+
+        // Generate installment bills for the new month
+        generateInstallmentBills.generateBillsForMonth(currentMonth)
+
         scheduleNotif()
     }
 }

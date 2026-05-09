@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.PieChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,8 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material3.Switch
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.rounded.ArrowBackIos
-import androidx.compose.material.icons.rounded.ArrowForwardIos
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.ChipElevation
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
@@ -53,7 +55,9 @@ import com.viso.ui.components.VisoCategoryPicker
 import com.viso.ui.components.VisoBottomSheet
 import com.viso.ui.components.VisoNumberPicker
 import com.viso.ui.components.VisoYearMonthPicker
+import com.viso.ui.theme.AccentAmber
 import com.viso.ui.theme.AccentBlue
+import com.viso.ui.theme.AccentGreen
 import com.viso.ui.theme.AccentRed
 import com.viso.ui.theme.BgApp
 import com.viso.ui.theme.BgCard
@@ -65,7 +69,10 @@ import com.viso.ui.utils.formatCurrency
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun BillsScreen(viewModel: BillsViewModel = hiltViewModel()) {
+fun BillsScreen(
+    onNavigateToCategoryChart: () -> Unit = {},
+    viewModel: BillsViewModel = hiltViewModel()
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -81,6 +88,15 @@ fun BillsScreen(viewModel: BillsViewModel = hiltViewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("Contas", style = MaterialTheme.typography.headlineMedium, color = TextPrimary) },
+                actions = {
+                    IconButton(onClick = onNavigateToCategoryChart) {
+                        Icon(
+                            Icons.Rounded.PieChart,
+                            contentDescription = "Ver gráfico por categoria",
+                            tint = TextPrimary
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgApp)
             )
         },
@@ -129,12 +145,96 @@ fun BillsScreen(viewModel: BillsViewModel = hiltViewModel()) {
                 }
             }
 
+            // Filter Chips
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = Spacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    FilterChip(
+                        selected = state.filter == BillFilter.ALL,
+                        onClick = { viewModel.setFilter(BillFilter.ALL) },
+                        label = { Text("Todas") },
+                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AccentBlue,
+                            selectedLabelColor = TextPrimary
+                        )
+                    )
+                    FilterChip(
+                        selected = state.filter == BillFilter.PENDING,
+                        onClick = { viewModel.setFilter(BillFilter.PENDING) },
+                        label = { Text("Pendentes (${state.pendingBillsCount})") },
+                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AccentAmber,
+                            selectedLabelColor = TextPrimary
+                        )
+                    )
+                    FilterChip(
+                        selected = state.filter == BillFilter.PAID,
+                        onClick = { viewModel.setFilter(BillFilter.PAID) },
+                        label = { Text("Pagas (${state.paidBillsCount})") },
+                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AccentGreen,
+                            selectedLabelColor = TextPrimary
+                        )
+                    )
+                }
+            }
+
+            // Show message when all bills are paid
+            if (state.pendingBillsCount == 0 && state.paidBillsCount > 0) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = AccentGreen.copy(alpha = 0.1f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(Spacing.lg),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "🎉",
+                                style = MaterialTheme.typography.headlineLarge
+                            )
+                            Spacer(Modifier.height(Spacing.sm))
+                            Text(
+                                text = "Todas as contas pagas!",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = AccentGreen
+                            )
+                            Text(
+                                text = "Mês completado com sucesso",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
             if (state.bills.isEmpty()) {
                 item {
+                    val emptyTitle = when (state.filter) {
+                        BillFilter.PAID -> "Nenhuma conta paga"
+                        BillFilter.PENDING -> "Nenhuma conta pendente"
+                        BillFilter.ALL -> "Nenhuma conta cadastrada"
+                    }
+                    val emptySubtitle = when (state.filter) {
+                        BillFilter.PAID -> "As contas pagas aparecerão aqui"
+                        BillFilter.PENDING -> "Todas as contas estão pagas! 🎉"
+                        BillFilter.ALL -> "Adicione suas contas fixas para começar"
+                    }
                     EmptyState(
                         icon = Icons.Rounded.ReceiptLong,
-                        title = "Nenhuma conta cadastrada",
-                        subtitle = "Adicione suas contas fixas para começar"
+                        title = emptyTitle,
+                        subtitle = emptySubtitle
                     )
                 }
             } else {
@@ -188,10 +288,16 @@ fun BillsScreen(viewModel: BillsViewModel = hiltViewModel()) {
         }
 
         if (state.showMonthPicker) {
-            VisoYearMonthPicker(initial = state.billMonth, onDismiss = { viewModel.hideMonthPicker() }, onConfirm = {
-                viewModel.onBillMonthChange(it)
+            val initialMonth = if (state.isInstallment) state.installmentStartMonth else state.billMonth
+            val onConfirm: (String) -> Unit = { month ->
+                if (state.isInstallment) {
+                    viewModel.onInstallmentStartMonthChange(month)
+                } else {
+                    viewModel.onBillMonthChange(month)
+                }
                 viewModel.hideMonthPicker()
-            })
+            }
+            VisoYearMonthPicker(initial = initialMonth, onDismiss = { viewModel.hideMonthPicker() }, onConfirm = onConfirm)
         }
     }
 }
@@ -248,22 +354,76 @@ private fun AddEditBillSheet(state: BillsUiState, viewModel: BillsViewModel) {
                 onSelect = { viewModel.onBillCategoryChange(it) }
             )
 
-            Spacer(Modifier.height(Spacing.sm))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Recorrente mensal", color = TextPrimary)
-                Switch(checked = state.billIsRecurring, onCheckedChange = { viewModel.onBillIsRecurringChange(it) })
+            // Show installment option only for new bills
+            if (state.editingBill == null) {
+                Spacer(Modifier.height(Spacing.sm))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("É parcelada?", color = TextPrimary)
+                    Switch(checked = state.isInstallment, onCheckedChange = { viewModel.onIsInstallmentChange(it) })
+                }
             }
 
-            Spacer(Modifier.height(Spacing.sm))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Mês associado", color = TextPrimary)
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            // Show installment fields
+            if (state.isInstallment && state.editingBill == null) {
+                Spacer(Modifier.height(Spacing.sm))
+
+                VisoNumberPicker(
+                    value = state.totalInstallments,
+                    onValueChange = { viewModel.onTotalInstallmentsChange(it) },
+                    range = 2..48,
+                    label = "Número de parcelas",
+                    displayTransform = { "$it vezes" }
+                )
+
+                Spacer(Modifier.height(Spacing.sm))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Mês de início", color = TextPrimary)
                     Text(
-                        text = try { java.time.YearMonth.parse(state.billMonth).toString() } catch (_: Exception) { java.time.YearMonth.now().toString() },
+                        text = try { java.time.YearMonth.parse(state.installmentStartMonth).toString() } catch (_: Exception) { java.time.YearMonth.now().toString() },
                         color = TextPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.clickable { viewModel.showMonthPicker() }
                     )
+                }
+
+                // Preview of installment amount
+                val installmentAmount = if (state.totalInstallments > 0) {
+                    val baseAmount = state.billAmountCents / state.totalInstallments
+                    val remainder = state.billAmountCents % state.totalInstallments
+                    baseAmount + remainder
+                } else 0L
+
+                if (state.billAmountCents > 0) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Text(
+                        text = "${state.totalInstallments}x de ${formatCurrency(installmentAmount)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AccentBlue
+                    )
+                    Text(
+                        text = "Total: ${formatCurrency(state.billAmountCents)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
+            } else {
+                Spacer(Modifier.height(Spacing.sm))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Recorrente mensal", color = TextPrimary)
+                    Switch(checked = state.billIsRecurring, onCheckedChange = { viewModel.onBillIsRecurringChange(it) })
+                }
+
+                Spacer(Modifier.height(Spacing.sm))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Mês associado", color = TextPrimary)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = try { java.time.YearMonth.parse(state.billMonth).toString() } catch (_: Exception) { java.time.YearMonth.now().toString() },
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.clickable { viewModel.showMonthPicker() }
+                        )
+                    }
                 }
             }
 

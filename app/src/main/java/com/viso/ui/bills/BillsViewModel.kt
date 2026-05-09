@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.viso.data.repository.BillRepository
 import com.viso.data.repository.ConfigRepository
 import com.viso.data.repository.ExtraIncomeRepository
+import com.viso.data.repository.InstallmentBillRepository
 import com.viso.domain.model.Bill
+import com.viso.domain.model.InstallmentBill
 import com.viso.domain.usecase.CalculateRuleUseCase
 import com.viso.domain.usecase.FinancialRule
+import com.viso.domain.usecase.GenerateInstallmentBillsUseCase
 import com.viso.domain.usecase.ScheduleNotificationsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +26,10 @@ import kotlinx.coroutines.launch
 import java.time.YearMonth
 import java.util.UUID
 import javax.inject.Inject
+
+enum class BillFilter {
+    ALL, PENDING, PAID
+}
 
 data class BillsUiState(
     val bills: List<Bill> = emptyList(),
@@ -40,7 +47,15 @@ data class BillsUiState(
     val billMonth: String = "",
     val showMonthPicker: Boolean = false,
     val showDeleteDialog: Boolean = false,
-    val deletingBillId: String? = null
+    val deletingBillId: String? = null,
+    // Installment fields
+    val isInstallment: Boolean = false,
+    val totalInstallments: Int = 2,
+    val installmentStartMonth: String = YearMonth.now().toString(),
+    // Filter
+    val filter: BillFilter = BillFilter.ALL,
+    val paidBillsCount: Int = 0,
+    val pendingBillsCount: Int = 0
 )
 
 @HiltViewModel
@@ -48,8 +63,10 @@ class BillsViewModel @Inject constructor(
     private val billRepo: BillRepository,
     private val configRepo: ConfigRepository,
     private val extraRepo: ExtraIncomeRepository,
+    private val installmentBillRepo: InstallmentBillRepository,
     private val calculateRule: CalculateRuleUseCase,
-    private val scheduleNotif: ScheduleNotificationsUseCase
+    private val scheduleNotif: ScheduleNotificationsUseCase,
+    private val generateInstallmentBills: GenerateInstallmentBillsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BillsUiState())
@@ -69,16 +86,33 @@ class BillsViewModel @Inject constructor(
                 configRepo.configFlow,
                 billRepo.getAllBillsFlow(),
                 extraRepo.getTotalForMonthFlow(currentMonth)
-            ) { config, bills, extraTotal ->
+            ) { config, allBills, extraTotal ->
                 val rule = calculateRule(config.effectiveSalaryCents, extraTotal)
-                val totalBills = bills.sumOf { it.amountCents }
-                val byCategory = bills.groupBy { it.category }
+
+                // Count paid and pending bills
+                val paidCount = allBills.count { it.isPaid }
+                val pendingCount = allBills.size - paidCount
+
+                // Apply filter based on current state
+                val currentFilter = _uiState.value.filter
+                val filteredBills = when (currentFilter) {
+                    BillFilter.ALL -> allBills
+                    BillFilter.PENDING -> allBills.filter { !it.isPaid }
+                    BillFilter.PAID -> allBills.filter { it.isPaid }
+                }
+
+                val totalBills = allBills.sumOf { it.amountCents }
+                val byCategory = filteredBills.groupBy { it.category }
+
                 BillsUiState(
-                    bills = bills,
+                    bills = filteredBills,
                     billsByCategory = byCategory,
                     totalBillsCents = totalBills,
                     rule = rule,
-                    isLoading = false
+                    isLoading = false,
+                    filter = currentFilter,
+                    paidBillsCount = paidCount,
+                    pendingBillsCount = pendingCount
                 )
             }.collect { state ->
                 _uiState.update { current ->
@@ -90,7 +124,10 @@ class BillsViewModel @Inject constructor(
                         billDueDay = current.billDueDay,
                         billCategory = current.billCategory,
                         showDeleteDialog = current.showDeleteDialog,
-                        deletingBillId = current.deletingBillId
+                        deletingBillId = current.deletingBillId,
+                        isInstallment = current.isInstallment,
+                        totalInstallments = current.totalInstallments,
+                        installmentStartMonth = current.installmentStartMonth
                     )
                 }
             }
@@ -104,13 +141,25 @@ class BillsViewModel @Inject constructor(
                 billName = "", billAmountCents = 0L,
                 billDueDay = 1, billCategory = "outro",
                 billIsRecurring = false,
-                billMonth = java.time.YearMonth.now().toString(),
-                showMonthPicker = false
+                billMonth = YearMonth.now().toString(),
+                showMonthPicker = false,
+                // Reset installment fields
+                isInstallment = false,
+                totalInstallments = 2,
+                installmentStartMonth = YearMonth.now().toString()
             )
         }
     }
 
     fun showEditSheet(bill: Bill) {
+        // If it's an installment bill, show info message
+        if (bill.isInstallment) {
+            viewModelScope.launch {
+                _errorEvent.emit("Contas parceladas não podem ser editadas individualmente. Cancele o parcelamento e crie novamente.")
+            }
+            return
+        }
+
         _uiState.update {
             it.copy(
                 showSheet = true, editingBill = bill,
@@ -119,8 +168,10 @@ class BillsViewModel @Inject constructor(
                 billDueDay = bill.dueDay,
                 billCategory = bill.category,
                 billIsRecurring = bill.isRecurring,
-                billMonth = bill.paidMonth.ifBlank { java.time.YearMonth.now().toString() },
-                showMonthPicker = false
+                billMonth = bill.paidMonth.ifBlank { YearMonth.now().toString() },
+                showMonthPicker = false,
+                // Reset installment fields for regular edit
+                isInstallment = false
             )
         }
     }
@@ -161,6 +212,19 @@ class BillsViewModel @Inject constructor(
         _uiState.update { it.copy(showMonthPicker = false) }
     }
 
+    // Installment field handlers
+    fun onIsInstallmentChange(isInstallment: Boolean) {
+        _uiState.update { it.copy(isInstallment = isInstallment) }
+    }
+
+    fun onTotalInstallmentsChange(count: Int) {
+        _uiState.update { it.copy(totalInstallments = count.coerceIn(2, 48)) }
+    }
+
+    fun onInstallmentStartMonthChange(month: String) {
+        _uiState.update { it.copy(installmentStartMonth = month) }
+    }
+
     fun saveBill() {
         val state = _uiState.value
         if (state.billName.isBlank()) {
@@ -171,23 +235,15 @@ class BillsViewModel @Inject constructor(
             viewModelScope.launch { _errorEvent.emit("Digite um valor válido") }
             return
         }
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val bill = Bill(
-                    id = state.editingBill?.id ?: UUID.randomUUID().toString(),
-                    name = state.billName.trim(),
-                    amountCents = state.billAmountCents,
-                    dueDay = state.billDueDay,
-                    category = state.billCategory,
-                    isRecurring = state.billIsRecurring,
-                    paidMonth = state.billMonth,
-                    isPaid = state.editingBill?.isPaid ?: false,
-                    createdAt = state.editingBill?.createdAt ?: System.currentTimeMillis()
-                )
-                if (state.editingBill != null) {
-                    billRepo.update(bill)
+                if (state.isInstallment && state.editingBill == null) {
+                    // Create installment bill
+                    saveInstallmentBill(state)
                 } else {
-                    billRepo.insert(bill)
+                    // Create or update regular bill
+                    saveRegularBill(state)
                 }
                 scheduleNotif()
                 hideSheet()
@@ -195,6 +251,50 @@ class BillsViewModel @Inject constructor(
                 _errorEvent.emit("Erro ao salvar conta: ${e.message}")
             }
         }
+    }
+
+    private suspend fun saveRegularBill(state: BillsUiState) {
+        val bill = Bill(
+            id = state.editingBill?.id ?: UUID.randomUUID().toString(),
+            name = state.billName.trim(),
+            amountCents = state.billAmountCents,
+            dueDay = state.billDueDay,
+            category = state.billCategory,
+            isRecurring = state.billIsRecurring,
+            paidMonth = state.billMonth,
+            isPaid = state.editingBill?.isPaid ?: false,
+            createdAt = state.editingBill?.createdAt ?: System.currentTimeMillis(),
+            isInstallment = false
+        )
+        if (state.editingBill != null) {
+            billRepo.update(bill)
+        } else {
+            billRepo.insert(bill)
+        }
+    }
+
+    private suspend fun saveInstallmentBill(state: BillsUiState) {
+        val installmentAmount = generateInstallmentBills.calculateInstallmentAmount(
+            state.billAmountCents,
+            state.totalInstallments,
+            1
+        )
+
+        val installmentBill = InstallmentBill(
+            id = UUID.randomUUID().toString(),
+            name = state.billName.trim(),
+            totalAmountCents = state.billAmountCents,
+            installmentAmountCents = installmentAmount,
+            totalInstallments = state.totalInstallments,
+            startMonth = state.installmentStartMonth,
+            category = state.billCategory,
+            dueDay = state.billDueDay,
+            isActive = true,
+            createdAt = System.currentTimeMillis()
+        )
+
+        installmentBillRepo.insert(installmentBill)
+        generateInstallmentBills.generateInitialBill(installmentBill)
     }
 
     fun markAsPaid(billId: String) {
@@ -226,5 +326,11 @@ class BillsViewModel @Inject constructor(
 
     fun cancelDelete() {
         _uiState.update { it.copy(showDeleteDialog = false, deletingBillId = null) }
+    }
+
+    fun setFilter(filter: BillFilter) {
+        _uiState.update { it.copy(filter = filter) }
+        // Reload data to apply filter
+        loadData()
     }
 }

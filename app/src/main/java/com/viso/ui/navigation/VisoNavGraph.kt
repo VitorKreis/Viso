@@ -25,11 +25,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.viso.ui.agenda.AgendaScreen
 import com.viso.ui.bills.BillsScreen
+import com.viso.ui.categorychart.CategoryChartScreen
 import com.viso.ui.config.ConfigScreen
 import com.viso.ui.goals.GoalsScreen
 import com.viso.ui.home.HomeScreen
 import com.viso.ui.onboarding.OnboardingScreen
 import com.viso.ui.reports.ReportsScreen
+import com.viso.ui.streaks.StreaksScreen
 import com.viso.ui.theme.AccentBlue
 import com.viso.ui.theme.BgCard2
 import com.viso.ui.theme.TextMuted
@@ -81,6 +83,12 @@ fun VisoNavGraph(startDestination: String) {
         }
         composable(Screen.Reports.route) {
             ReportsScreen(onBack = { rootNavController.popBackStack() })
+        }
+        composable(Screen.CategoryChart.route) {
+            CategoryChartScreen(onBack = { rootNavController.popBackStack() })
+        }
+        composable(Screen.Streaks.route) {
+            StreaksScreen(onBack = { rootNavController.popBackStack() })
         }
     }
 }
@@ -134,11 +142,14 @@ fun MainScaffold(rootNavController: NavHostController, initialTab: Screen) {
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToConfig = { rootNavController.navigate(Screen.Config.route) },
-                    onNavigateToReports = { rootNavController.navigate(Screen.Reports.route) }
+                    onNavigateToReports = { rootNavController.navigate(Screen.Reports.route) },
+                    onNavigateToStreaks = { rootNavController.navigate(Screen.Streaks.route) }
                 )
             }
             composable(Screen.Bills.route) {
-                BillsScreen()
+                BillsScreen(
+                    onNavigateToCategoryChart = { rootNavController.navigate(Screen.CategoryChart.route) }
+                )
             }
             composable(Screen.Goals.route) {
                 GoalsScreen()
