@@ -33,6 +33,8 @@ object ConfigKeys {
     val PAYDAY2 = intPreferencesKey("payday2")
     val CURRENT_STREAK = intPreferencesKey("current_streak")
     val MAX_STREAK = intPreferencesKey("max_streak")
+    val NOTIF_HOUR = intPreferencesKey("notif_hour")
+    val AUTO_RESET = booleanPreferencesKey("auto_reset")
 }
 
 @Singleton
@@ -56,7 +58,9 @@ class ConfigDataStore @Inject constructor(
             salary2Cents = prefs[ConfigKeys.SALARY2_CENTS] ?: 0L,
             payday2 = prefs[ConfigKeys.PAYDAY2] ?: 20,
             currentStreak = prefs[ConfigKeys.CURRENT_STREAK] ?: 0,
-            maxStreak = prefs[ConfigKeys.MAX_STREAK] ?: 0
+            maxStreak = prefs[ConfigKeys.MAX_STREAK] ?: 0,
+            notifHour = prefs[ConfigKeys.NOTIF_HOUR] ?: 9,
+            isAutoReset = prefs[ConfigKeys.AUTO_RESET] ?: true
         )
     }
 
@@ -107,6 +111,14 @@ class ConfigDataStore @Inject constructor(
             it[ConfigKeys.CURRENT_STREAK] = current
             it[ConfigKeys.MAX_STREAK] = max
         }
+    }
+
+    suspend fun updateNotifHour(hour: Int) {
+        context.dataStore.edit { it[ConfigKeys.NOTIF_HOUR] = hour }
+    }
+
+    suspend fun updateAutoReset(enabled: Boolean) {
+        context.dataStore.edit { it[ConfigKeys.AUTO_RESET] = enabled }
     }
 
     suspend fun clearAll() {

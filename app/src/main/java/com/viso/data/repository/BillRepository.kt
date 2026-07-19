@@ -10,7 +10,8 @@ import javax.inject.Singleton
 
 @Singleton
 class BillRepository @Inject constructor(
-    private val billDao: BillDao
+    private val billDao: BillDao,
+    private val firestoreSync: com.viso.data.sync.FirestoreSyncManager? = null
 ) {
     fun getAllBillsFlow(): Flow<List<Bill>> =
         billDao.getAllBills().map { list -> list.map { it.toDomain() } }
@@ -49,6 +50,31 @@ class BillRepository @Inject constructor(
         billDao.getAllBillsList()
             .filter { it.parentInstallmentId == parentId }
             .map { it.toDomain() }
+
+    suspend fun getCategorySpending(month: String): Map<String, Long> {
+        return billDao.getCategorySpending(month).associate { it.category to it.total }
+    }
+
+    suspend fun resetRecurringPaidStatus() {
+        billDao.resetRecurringPaidStatus()
+    }
+
+    // Firestore sync methods
+    suspend fun syncBillToFirestore(bill: Bill) =
+        firestoreSync?.syncBill(bill) ?: Result.failure(Exception("Sincronização indisponível"))
+
+    suspend fun deleteBillFromFirestore(billId: String) =
+        firestoreSync?.deleteBill(billId) ?: Result.failure(Exception("Sincronização indisponível"))
+
+    suspend fun syncBillPaidStatusToFirestore(billId: String, isPaid: Boolean, paidMonth: String) =
+        firestoreSync?.syncBillPaidStatus(billId, isPaid, paidMonth)
+            ?: Result.failure(Exception("Sincronização indisponível"))
+
+    suspend fun getAllBillsFromFirestore() =
+        firestoreSync?.getAllBillsOnce() ?: Result.failure(Exception("Sincronização indisponível"))
+
+    suspend fun getAllGoalsFromFirestore() =
+        firestoreSync?.getAllGoalsOnce() ?: Result.failure(Exception("Sincronização indisponível"))
 
     private fun BillEntity.toDomain() = Bill(
         id = id,

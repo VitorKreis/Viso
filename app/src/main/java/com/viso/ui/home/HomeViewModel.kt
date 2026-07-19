@@ -71,10 +71,15 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            resetUseCase()
+            val config = configRepo.getConfig()
+            if (config.isAutoReset) {
+                resetUseCase()
+            }
             loadData()
         }
     }
+
+
 
     private fun loadData() {
         val currentMonth = YearMonth.now().toString()

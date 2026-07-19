@@ -40,6 +40,7 @@ data class GoalsUiState(
     val showAddAmountDialog: Boolean = false,
     val addAmountGoalId: String? = null,
     val addAmountCents: Long = 0L,
+    val isWithdrawMode: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val deletingGoalId: String? = null
 )
@@ -116,6 +117,7 @@ class GoalsViewModel @Inject constructor(
                         showAddAmountDialog = current.showAddAmountDialog,
                         addAmountGoalId = current.addAmountGoalId,
                         addAmountCents = current.addAmountCents,
+                        isWithdrawMode = current.isWithdrawMode,
                         showDeleteDialog = current.showDeleteDialog,
                         deletingGoalId = current.deletingGoalId
                     )
@@ -207,12 +209,35 @@ class GoalsViewModel @Inject constructor(
 
     fun showAddAmount(goalId: String) {
         _uiState.update {
-            it.copy(showAddAmountDialog = true, addAmountGoalId = goalId, addAmountCents = 0L)
+            it.copy(
+                showAddAmountDialog = true,
+                addAmountGoalId = goalId,
+                addAmountCents = 0L,
+                isWithdrawMode = false
+            )
+        }
+    }
+
+    fun showWithdrawAmount(goalId: String) {
+        _uiState.update {
+            it.copy(
+                showAddAmountDialog = true,
+                addAmountGoalId = goalId,
+                addAmountCents = 0L,
+                isWithdrawMode = true
+            )
         }
     }
 
     fun hideAddAmount() {
-        _uiState.update { it.copy(showAddAmountDialog = false, addAmountGoalId = null) }
+        _uiState.update {
+            it.copy(
+                showAddAmountDialog = false,
+                addAmountGoalId = null,
+                addAmountCents = 0L,
+                isWithdrawMode = false
+            )
+        }
     }
 
     fun onAddAmountChange(cents: Long) {
@@ -226,10 +251,20 @@ class GoalsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val goal = goalRepo.getGoalById(goalId) ?: return@launch
-                goalRepo.update(goal.copy(currentAmountCents = goal.currentAmountCents + state.addAmountCents))
+                val newAmount = if (state.isWithdrawMode) {
+                    if (state.addAmountCents > goal.currentAmountCents) {
+                        _errorEvent.emit("Valor maior que o saldo guardado")
+                        return@launch
+                    }
+                    goal.currentAmountCents - state.addAmountCents
+                } else {
+                    goal.currentAmountCents + state.addAmountCents
+                }
+                goalRepo.update(goal.copy(currentAmountCents = newAmount))
                 hideAddAmount()
             } catch (e: Exception) {
-                _errorEvent.emit("Erro ao adicionar valor: ${e.message}")
+                val action = if (state.isWithdrawMode) "retirar" else "adicionar"
+                _errorEvent.emit("Erro ao $action valor: ${e.message}")
             }
         }
     }

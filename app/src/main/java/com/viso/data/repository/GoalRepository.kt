@@ -10,7 +10,8 @@ import javax.inject.Singleton
 
 @Singleton
 class GoalRepository @Inject constructor(
-    private val goalDao: GoalDao
+    private val goalDao: GoalDao,
+    private val firestoreSync: com.viso.data.sync.FirestoreSyncManager? = null
 ) {
     fun getAllGoalsFlow(): Flow<List<Goal>> =
         goalDao.getAllGoals().map { list -> list.map { it.toDomain() } }
@@ -35,6 +36,13 @@ class GoalRepository @Inject constructor(
 
     suspend fun deleteById(id: String) =
         goalDao.deleteById(id)
+
+    // Firestore sync methods
+    suspend fun syncGoalToFirestore(goal: Goal) =
+        firestoreSync?.syncGoal(goal) ?: Result.failure(Exception("Sincronização indisponível"))
+
+    suspend fun deleteGoalFromFirestore(goalId: String) =
+        firestoreSync?.deleteGoal(goalId) ?: Result.failure(Exception("Sincronização indisponível"))
 
     private fun GoalEntity.toDomain() = Goal(
         id = id,

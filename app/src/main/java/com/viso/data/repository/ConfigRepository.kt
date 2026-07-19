@@ -36,4 +36,8 @@ class ConfigRepository @Inject constructor(
     suspend fun updatePayday2(day: Int) = configDataStore.updatePayday2(day)
 
     suspend fun clearAll() = configDataStore.clearAll()
+
+    suspend fun updateNotifHour(hour: Int) = configDataStore.updateNotifHour(hour)
+
+    suspend fun updateAutoReset(enabled: Boolean) = configDataStore.updateAutoReset(enabled)
 }

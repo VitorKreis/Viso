@@ -8,12 +8,14 @@ import com.viso.data.db.dao.ExtraIncomeDao
 import com.viso.data.db.dao.GoalDao
 import com.viso.data.db.dao.InstallmentBillDao
 import com.viso.data.db.dao.MonthHistoryDao
+import com.viso.data.db.dao.PaymentHistoryDao
 import com.viso.data.db.entity.AchievementEntity
 import com.viso.data.db.entity.BillEntity
 import com.viso.data.db.entity.ExtraIncomeEntity
 import com.viso.data.db.entity.GoalEntity
 import com.viso.data.db.entity.InstallmentBillEntity
 import com.viso.data.db.entity.MonthHistoryEntity
+import com.viso.data.db.entity.PaymentHistoryEntity
 
 @Database(
     entities = [
@@ -22,9 +24,10 @@ import com.viso.data.db.entity.MonthHistoryEntity
         ExtraIncomeEntity::class,
         MonthHistoryEntity::class,
         InstallmentBillEntity::class,
-        AchievementEntity::class
+        AchievementEntity::class,
+        PaymentHistoryEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class VisoDB : RoomDatabase() {
@@ -34,4 +37,5 @@ abstract class VisoDB : RoomDatabase() {
     abstract fun monthHistoryDao(): MonthHistoryDao
     abstract fun installmentBillDao(): InstallmentBillDao
     abstract fun achievementDao(): AchievementDao
+    abstract fun paymentHistoryDao(): PaymentHistoryDao
 }

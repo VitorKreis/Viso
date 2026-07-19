@@ -98,6 +98,7 @@ fun GoalsScreen(viewModel: GoalsViewModel = hiltViewModel()) {
                     GoalCard(
                         goal = goal,
                         onAddAmount = { viewModel.showAddAmount(goal.id) },
+                        onWithdrawAmount = { viewModel.showWithdrawAmount(goal.id) },
                         onEdit = { viewModel.showEditSheet(goal) },
                         onDelete = if (!goal.isEmergencyFund) {{ viewModel.requestDelete(goal.id) }} else null
                     )
@@ -189,6 +190,12 @@ fun GoalsScreen(viewModel: GoalsViewModel = hiltViewModel()) {
 
         if (state.showAddAmountDialog) {
             val addGoal = state.goals.find { it.id == state.addAmountGoalId }
+            val isWithdraw = state.isWithdrawMode
+            val projectedAmount = if (isWithdraw) {
+                (addGoal?.currentAmountCents ?: 0L) - state.addAmountCents
+            } else {
+                (addGoal?.currentAmountCents ?: 0L) + state.addAmountCents
+            }
             VisoBottomSheet(onDismiss = { viewModel.hideAddAmount() }) {
                 Column(
                     modifier = Modifier
@@ -197,7 +204,7 @@ fun GoalsScreen(viewModel: GoalsViewModel = hiltViewModel()) {
                         .padding(bottom = Spacing.xxl)
                 ) {
                     Text(
-                        text = "Adicionar à meta",
+                        text = if (isWithdraw) "Retirar da meta" else "Adicionar à meta",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary
                     )
@@ -221,11 +228,15 @@ fun GoalsScreen(viewModel: GoalsViewModel = hiltViewModel()) {
                                 Text(formatCurrency(addGoal.currentAmountCents), style = MaterialTheme.typography.titleMedium, color = TextPrimary)
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("Após adicionar", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                                 Text(
-                                    text = formatCurrency(addGoal.currentAmountCents + state.addAmountCents),
+                                    if (isWithdraw) "Após retirar" else "Após adicionar",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = TextMuted
+                                )
+                                Text(
+                                    text = formatCurrency(projectedAmount.coerceAtLeast(0L)),
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = AccentGreen
+                                    color = if (isWithdraw) AccentRed else AccentGreen
                                 )
                             }
                         }
@@ -235,18 +246,21 @@ fun GoalsScreen(viewModel: GoalsViewModel = hiltViewModel()) {
                     CurrencyTextField(
                         amountCents = state.addAmountCents,
                         onAmountChange = { viewModel.onAddAmountChange(it) },
-                        label = "Valor a adicionar",
+                        label = if (isWithdraw) "Valor a retirar" else "Valor a adicionar",
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(Modifier.height(Spacing.lg))
 
                     Button(
                         onClick = { viewModel.confirmAddAmount() },
-                        enabled = state.addAmountCents > 0,
+                        enabled = state.addAmountCents > 0 &&
+                                (!isWithdraw || state.addAmountCents <= (addGoal?.currentAmountCents ?: 0L)),
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isWithdraw) AccentRed else AccentBlue
+                        )
                     ) {
-                        Text("Confirmar")
+                        Text(if (isWithdraw) "Retirar" else "Adicionar")
                     }
                 }
             }

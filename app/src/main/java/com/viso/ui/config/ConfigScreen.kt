@@ -284,6 +284,94 @@ fun ConfigScreen(
 
             item { HorizontalDivider(color = BgCard) }
 
+            // Month closing
+            item {
+                Text("Fechamento do Mês", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                Spacer(Modifier.height(Spacing.sm))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BgCard, MaterialTheme.shapes.medium)
+                        .padding(Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Mês", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        Text(state.closingMonth, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Contas pagas", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        Text(
+                            "${state.closePaidBillsCount}/${state.closePaidBillsCount + state.closeUnpaidBillsCount}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = TextPrimary
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Total em contas", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        Text(formatCurrency(state.closeTotalBillsCents), style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                    }
+                    if (state.closeExtraIncomeCents > 0) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Entradas extras", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                            Text(formatCurrency(state.closeExtraIncomeCents), style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                        }
+                    }
+                    if (state.closeUnpaidBillsCount > 0) {
+                        Text(
+                            "Ainda existem ${state.closeUnpaidBillsCount} conta(s) pendente(s). Você pode fechar mesmo assim, mas a sequência do mês não aumenta.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AccentRed
+                        )
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Reset automático no dia 1",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                    Switch(
+                        checked = state.isAutoReset,
+                        onCheckedChange = { viewModel.onAutoResetChange(it) }
+                    )
+                }
+                
+                Spacer(Modifier.height(Spacing.sm))
+                Button(
+                    onClick = { viewModel.requestCloseMonth() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.isClosingMonth,
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                ) {
+                    Text(if (state.isClosingMonth) "Fechando..." else "Fechar mês agora")
+                }
+                Text(
+                    "O fechamento salva o histórico, limpa entradas extras, reseta contas recorrentes e arquiva contas avulsas pagas.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+
+            item { HorizontalDivider(color = BgCard) }
+
             // Data reset
             item {
                 Text("Dados", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
@@ -354,6 +442,42 @@ fun ConfigScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.cancelReset() }) {
+                        Text("Cancelar", color = TextSecondary)
+                    }
+                },
+                containerColor = BgCard
+            )
+        }
+
+        if (state.showCloseMonthDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelCloseMonth() },
+                title = { Text("Fechar ${state.closingMonth}?", color = TextPrimary) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Text(
+                            "Pagas: ${state.closePaidBillsCount} · Pendentes: ${state.closeUnpaidBillsCount}",
+                            color = TextSecondary
+                        )
+                        Text(
+                            "Depois do fechamento, contas recorrentes voltam para pendente e contas avulsas pagas saem da lista atual.",
+                            color = TextSecondary
+                        )
+                        if (state.closeUnpaidBillsCount > 0) {
+                            Text(
+                                "Fechar com pendências mantém o histórico, mas não aumenta sua sequência.",
+                                color = AccentRed
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmCloseMonth() }) {
+                        Text("Fechar mês", color = AccentBlue)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.cancelCloseMonth() }) {
                         Text("Cancelar", color = TextSecondary)
                     }
                 },

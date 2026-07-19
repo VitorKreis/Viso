@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -45,6 +46,7 @@ import com.viso.ui.utils.formatCurrency
 fun GoalCard(
     goal: Goal,
     onAddAmount: () -> Unit,
+    onWithdrawAmount: () -> Unit,
     onEdit: () -> Unit,
     onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -113,6 +115,9 @@ fun GoalCard(
                     IconButton(onClick = onDelete) {
                         Icon(Icons.Rounded.Delete, contentDescription = "Excluir meta", tint = TextSecondary)
                     }
+                }
+                IconButton(onClick = onWithdrawAmount) {
+                    Icon(Icons.Rounded.Remove, contentDescription = "Retirar valor", tint = TextSecondary)
                 }
                 IconButton(onClick = onAddAmount) {
                     Icon(Icons.Rounded.Add, contentDescription = "Adicionar valor", tint = color)

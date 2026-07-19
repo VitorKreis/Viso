@@ -1,6 +1,8 @@
 package com.viso.data.repository
 
 import com.viso.data.db.dao.BillDao
+import com.viso.data.db.dao.MonthSpendingTuple
+import com.viso.data.db.entity.CategorySpendTuple
 import com.viso.data.db.entity.BillEntity
 import com.viso.domain.model.Bill
 import kotlinx.coroutines.flow.Flow
@@ -50,6 +52,13 @@ class BillRepositoryTest {
             flow.value = items.toList()
         }
 
+        override suspend fun resetRecurringPaidStatus() {
+            items.replaceAll {
+                if (it.isRecurring && it.isPaid) it.copy(isPaid = false, paidMonth = "") else it
+            }
+            flow.value = items.toList()
+        }
+
         override suspend fun markAsPaid(id: String, month: String) {
             items.replaceAll { if (it.id == id) it.copy(isPaid = true, paidMonth = month) else it }
             flow.value = items.toList()
@@ -63,6 +72,20 @@ class BillRepositoryTest {
         override suspend fun findDuplicate(name: String, amountCents: Long, dueDay: Int, category: String): BillEntity? {
             return items.find { it.name == name && it.amountCents == amountCents && it.dueDay == dueDay && it.category == category }
         }
+
+        override suspend fun getCategorySpending(month: String): List<CategorySpendTuple> =
+            items.filter { it.paidMonth == month }
+                .groupBy { it.category }
+                .map { (category, bills) ->
+                    CategorySpendTuple(category, bills.sumOf { it.amountCents })
+                }
+
+        override suspend fun getMonthlySpending(): List<MonthSpendingTuple> =
+            items.filter { it.isPaid && it.paidMonth.isNotBlank() }
+                .groupBy { it.paidMonth }
+                .map { (month, bills) ->
+                    MonthSpendingTuple(month, bills.sumOf { it.amountCents })
+                }
     }
 
     @Test

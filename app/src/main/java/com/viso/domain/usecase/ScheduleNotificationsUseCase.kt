@@ -20,6 +20,8 @@ class ScheduleNotificationsUseCase @Inject constructor(
     suspend operator fun invoke() {
         val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
         val config = configRepo.getConfig()
+        if (config.notifDaysBefore <= 0) return
+
         val bills = billRepo.getAllBills()
         val now = LocalDate.now()
 
@@ -41,7 +43,7 @@ class ScheduleNotificationsUseCase @Inject constructor(
             if (triggerDate.isBefore(now)) return@forEach
 
             val triggerMillis = triggerDate
-                .atTime(9, 0)
+                .atTime(config.notifHour.coerceIn(6, 22), 0)
                 .atZone(ZoneId.systemDefault())
                 .toInstant()
                 .toEpochMilli()

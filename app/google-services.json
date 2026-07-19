@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "784359636706",
+    "project_id": "viso-b4da6",
+    "storage_bucket": "viso-b4da6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:784359636706:android:1f312da1c5ced452c568bb",
+        "android_client_info": {
+          "package_name": "com.viso"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "784359636706-jged9a4f390be91dhr1s3hqu3t82bad2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.viso",
+            "certificate_hash": "fbc3d07ba140bb308742807539652da068561252"
+          }
+        },
+        {
+          "client_id": "784359636706-2vg7gi222ohurjhjdd3otj91kb2fdag7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUPQiQ6-jzTpI2w2ds4MMz7i2zm7GpdJ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "784359636706-2vg7gi222ohurjhjdd3otj91kb2fdag7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

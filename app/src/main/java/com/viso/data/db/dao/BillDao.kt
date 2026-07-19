@@ -44,4 +44,18 @@ interface BillDao {
 
     @Query("UPDATE bills SET isPaid = 0 WHERE id = :id")
     suspend fun markAsUnpaid(id: String)
+
+    @Query("UPDATE bills SET isPaid = 0, paidMonth = '' WHERE isRecurring = 1 AND isPaid = 1")
+    suspend fun resetRecurringPaidStatus()
+
+    @Query("SELECT category, SUM(amountCents) as total FROM bills WHERE paidMonth = :month GROUP BY category")
+    suspend fun getCategorySpending(month: String): List<com.viso.data.db.entity.CategorySpendTuple>
+
+    @Query("SELECT paidMonth as paidMonth, SUM(amountCents) as totalCents FROM bills WHERE isPaid = 1 AND paidMonth != '' GROUP BY paidMonth ORDER BY paidMonth")
+    suspend fun getMonthlySpending(): List<MonthSpendingTuple>
 }
+
+data class MonthSpendingTuple(
+    val paidMonth: String,
+    val totalCents: Long
+)

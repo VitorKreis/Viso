@@ -69,6 +69,7 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 - Contribuição mensal configurável
 - Estimativa de meses para conclusão
 - Adicionar valores avulsos a qualquer momento
+- Retirar valores de metas ou da reserva de emergência com validação de saldo
 - Edição e exclusão de metas
 
 ### 🏆 Conquistas & Streaks
@@ -103,7 +104,9 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 - Modo de salário: parcela única ou duas parcelas
 - Dia(s) de recebimento configuráveis
 - Entradas extras do mês
-- Notificações de vencimento (1 a 7 dias antes)
+- Notificações de vencimento (1 a 7 dias antes e horário configurável)
+- Fechamento manual do mês com resumo, confirmação e histórico
+- Reset automático opcional no dia 1
 - Reset completo dos dados
 
 ### 🚀 Onboarding
@@ -115,7 +118,12 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 ### 🔔 Notificações
 - Alarmes exatos para lembrar de contas próximas ao vencimento
 - Reagendamento automático após reinicialização do dispositivo
-- Configurável de 1 a 7 dias de antecedência
+- Configurável de 1 a 7 dias de antecedência e horário entre 6h e 22h
+
+### 📱 Instalação Rápida no Celular
+- Script `instalar-no-celular.bat` para Windows
+- Detecta `adb`, instala o APK debug e tenta abrir o app automaticamente
+- Fluxo pensado para testar no telefone com poucos cliques
 
 ### 📐 Responsividade
 - Layouts adaptativos com `weight` e `BoxWithConstraints`
@@ -178,7 +186,7 @@ O projeto segue **MVVM** com Clean Architecture simplificada:
 │  Repositories → DAOs / DataStore         │
 ├─────────────────────────────────────────┤
 │             Infrastructure               │
-│  Room DB  ·  DataStore  ·  Hilt DI       │
+│  Room DB · DataStore · Firebase · Hilt   │
 └─────────────────────────────────────────┘
 ```
 
@@ -189,6 +197,7 @@ O projeto segue **MVVM** com Clean Architecture simplificada:
 - **Dependency Injection** — Hilt com `@HiltViewModel` e `@Inject constructor`
 - **Reactive Streams** — `Flow` do Room + `combine()` nos ViewModels
 - **Offline-first** — Todos os dados persistidos localmente (Room + DataStore)
+- **Backup opcional** — Firebase Auth + Firestore preparados para login e sincronização
 
 <br>
 
@@ -200,32 +209,42 @@ app/src/main/java/com/viso/
 ├── MainApplication.kt             # @HiltAndroidApp
 │
 ├── data/
+│   ├── auth/
+│   │   └── AuthRepository.kt      # Firebase Auth / login opcional
 │   ├── datastore/
 │   │   └── ConfigDataStore.kt     # Preferências do usuário (DataStore)
 │   ├── db/
-│   │   ├── VisoDB.kt              # Room Database (v4)
+│   │   ├── VisoDB.kt              # Room Database (v5)
 │   │   ├── dao/
 │   │   │   ├── AchievementDao.kt  # 🏆 Conquistas
 │   │   │   ├── BillDao.kt
 │   │   │   ├── ExtraIncomeDao.kt
 │   │   │   ├── GoalDao.kt
 │   │   │   ├── InstallmentBillDao.kt  # 🔄 Parcelamentos
-│   │   │   └── MonthHistoryDao.kt
+│   │   │   ├── MonthHistoryDao.kt
+│   │   │   └── PaymentHistoryDao.kt   # Histórico detalhado
 │   │   └── entity/
 │   │       ├── AchievementEntity.kt   # 🏆
 │   │       ├── BillEntity.kt
+│   │       ├── CategorySpendTuple.kt
 │   │       ├── ExtraIncomeEntity.kt
 │   │       ├── GoalEntity.kt
 │   │       ├── InstallmentBillEntity.kt  # 🔄
-│   │       └── MonthHistoryEntity.kt
-│   └── repository/
+│   │       ├── MonthHistoryEntity.kt
+│   │       └── PaymentHistoryEntity.kt
+│   ├── notifications/
+│   │   └── NotificationWorker.kt  # Worker preparado para lembretes
+│   ├── repository/
 │       ├── AchievementRepository.kt   # 🏆
 │       ├── BillRepository.kt
 │       ├── ConfigRepository.kt
 │       ├── ExtraIncomeRepository.kt
 │       ├── GoalRepository.kt
 │       ├── HistoryRepository.kt
-│       └── InstallmentBillRepository.kt  # 🔄
+│       ├── InstallmentBillRepository.kt  # 🔄
+│       └── PaymentHistoryRepository.kt
+│   └── sync/
+│       └── FirestoreSyncManager.kt # Backup/sync Firestore
 │
 ├── di/
 │   └── AppModule.kt               # Hilt module (@Provides)
@@ -240,13 +259,18 @@ app/src/main/java/com/viso/
 │   │   ├── FinancialSummary.kt
 │   │   ├── Goal.kt
 │   │   ├── InstallmentBill.kt     # 🔄 Parcelas
+│   │   ├── MonthlySpending.kt
+│   │   ├── PaymentHistory.kt      # Histórico de contas pagas
 │   │   └── StreakInfo.kt          # 🔥 Streaks
 │   └── usecase/
 │       ├── CalculateRuleUseCase.kt
+│       ├── CloseMonthUseCase.kt   # Fechamento manual
 │       ├── GenerateInstallmentBillsUseCase.kt  # 🔄
 │       ├── GetCategoryDistributionUseCase.kt   # 📊
+│       ├── GetMonthlySpendingTrendUseCase.kt
 │       ├── MonthlyResetUseCase.kt
 │       ├── ScheduleNotificationsUseCase.kt
+│       ├── SyncUseCase.kt         # Pull/push inicial Firestore
 │       └── StreakUseCases.kt      # 🔥🏆 Streaks & Conquistas
 │
 ├── notification/
@@ -259,6 +283,9 @@ app/src/main/java/com/viso/
     ├── agenda/
     │   ├── AgendaScreen.kt
     │   └── AgendaViewModel.kt
+    ├── auth/
+    │   ├── LoginScreen.kt
+    │   └── LoginViewModel.kt
     ├── bills/
     │   ├── BillsScreen.kt         # 🎛️ Filtros + Parcelas
     │   └── BillsViewModel.kt
@@ -274,6 +301,7 @@ app/src/main/java/com/viso/
     │   ├── PieChart.kt            # 📊
     │   ├── RuleBar.kt
     │   ├── StatusBadge.kt
+    │   ├── SyncStatusIndicator.kt
     │   ├── SummaryGrid.kt
     │   ├── VisoBottomSheet.kt
     │   ├── VisoCategoryPicker.kt
@@ -281,6 +309,9 @@ app/src/main/java/com/viso/
     ├── config/
     │   ├── ConfigScreen.kt
     │   └── ConfigViewModel.kt
+    ├── evolution/
+    │   ├── EvolutionScreen.kt
+    │   └── EvolutionViewModel.kt
     ├── goals/
     │   ├── GoalsScreen.kt
     │   └── GoalsViewModel.kt
@@ -289,6 +320,9 @@ app/src/main/java/com/viso/
     │   └── HomeViewModel.kt
     ├── navigation/
     │   └── VisoNavGraph.kt
+    ├── notifications/
+    │   ├── NotificationSettingsScreen.kt
+    │   └── NotificationSettingsViewModel.kt
     ├── onboarding/
     │   ├── OnboardingScreen.kt
     │   ├── OnboardingUiState.kt
@@ -306,6 +340,10 @@ app/src/main/java/com/viso/
     │   └── Typography.kt
     └── utils/
         └── FormatCurrency.kt
+
+app/src/main/java/com/viso/widget/
+├── VisoWidget.kt                  # Widget Glance
+└── VisoWidgetReceiver.kt
 ```
 
 <br>
@@ -322,6 +360,10 @@ app/src/main/java/com/viso/
 | **Hilt** | 2.51.1 | Injeção de dependência |
 | **Navigation Compose** | 2.7.7 | Navegação entre telas |
 | **Coroutines** | 1.8.1 | Programação assíncrona |
+| **Firebase Auth/Firestore** | BOM 32.7.0 | Login e backup opcional |
+| **Google Sign-In** | 20.7.0 | Autenticação com Google |
+| **WorkManager** | 2.9.0 | Infraestrutura para jobs em background |
+| **Glance** | 1.1.0 | Widget Android |
 | **KSP** | 1.9.24-1.0.20 | Processamento de anotações |
 | **AGP** | 8.5.2 | Build system |
 
@@ -349,7 +391,24 @@ data class Config(
     val salary2Cents: Long,
     val payday2: Int,
     val currentStreak: Int,         // 🔥 Streak atual
-    val maxStreak: Int              // 🔥 Recorde
+    val maxStreak: Int,             // 🔥 Recorde
+    val notifHour: Int,             // Horário dos lembretes
+    val isAutoReset: Boolean        // Fechamento automático no dia 1
+)
+```
+
+### PaymentHistory (Histórico Detalhado)
+```kotlin
+data class PaymentHistory(
+    val id: String,
+    val month: String,
+    val billId: String,
+    val billName: String,
+    val amountCents: Long,
+    val category: String,
+    val dueDay: Int,
+    val paidAt: Long,
+    val isRecurring: Boolean
 )
 ```
 
@@ -419,7 +478,7 @@ data class StreakInfo(
 
 ## 🗄 Banco de Dados
 
-**Room Database** — `VisoDB` (versão 4)
+**Room Database** — `VisoDB` (versão 5)
 
 | Tabela | Entidade | Descrição |
 |--------|----------|-----------|
@@ -429,11 +488,13 @@ data class StreakInfo(
 | `achievements` | `AchievementEntity` | 🏆 Conquistas do usuário |
 | `extra_incomes` | `ExtraIncomeEntity` | Entradas extras do mês |
 | `month_history` | `MonthHistoryEntity` | Histórico mensal |
+| `payment_history` | `PaymentHistoryEntity` | Histórico detalhado de contas pagas |
 
 **Migrations:**
 - v1 → v2: Adiciona `isRecurring` na tabela bills
 - v2 → v3: Adiciona tabela `installment_bills` e colunas de parcela em `bills`
 - v3 → v4: Adiciona tabela `achievements`
+- v4 → v5: Adiciona tabela `payment_history` e índice por mês
 
 <br>
 
@@ -455,6 +516,9 @@ data class StreakInfo(
 │              → 🔥 Conquistas             │
 │                                          │
 │  BillsScreen ──→ 📊 Gráfico Categorias   │
+│                                          │
+│  Auth/Login existe para backup opcional, │
+│  mas o uso offline continua disponível.  │
 └──────────────────────────────────────────┘
 ```
 
@@ -518,8 +582,8 @@ O app utiliza um tema escuro exclusivo com paleta azul:
 
 ### Clone o projeto
 ```bash
-git clone https://github.com/seu-usuario/viso.git
-cd viso
+git clone https://github.com/VitorKreis/Viso.git
+cd Viso
 ```
 
 ### Build debug
@@ -532,6 +596,15 @@ cd viso
 ./gradlew installDebug
 ```
 
+### Instalação rápida no Windows
+Conecte o telefone por USB, autorize a depuração USB e execute:
+
+```bat
+instalar-no-celular.bat
+```
+
+O script procura o `adb`, instala o APK debug no primeiro aparelho autorizado e tenta abrir o Viso automaticamente.
+
 ### Build release
 ```bash
 ./gradlew assembleRelease
@@ -542,6 +615,27 @@ O APK gerado estará em `app/build/outputs/apk/`.
 <br>
 
 ## 📝 Changelog
+
+### v2.1.0 (Julho/2026)
+
+#### ✨ Novas Funcionalidades
+- Metas agora aceitam entrada e retirada de valores
+- Reserva de emergência também permite movimentação manual com validação de saldo
+- Fechamento manual do mês com resumo, confirmação e aviso de pendências
+- Instalação rápida no celular via `instalar-no-celular.bat`
+- Widget Android registrado no manifesto
+
+#### 🧾 Fechamento do Mês
+- Salva histórico mensal e histórico detalhado de contas pagas
+- Reseta contas recorrentes para o próximo ciclo
+- Arquiva contas avulsas pagas
+- Limpa entradas extras do mês fechado
+- Atualiza streaks/conquistas conforme mês completo ou com pendências
+
+#### 🛠 Correções
+- Testes unitários atualizados para os DAOs/repositórios atuais
+- Horário configurado de notificação agora é usado no agendamento real
+- README alinhado com Room v5, Firebase, Glance, histórico de pagamentos e sync opcional
 
 ### v2.0.0 (Maio/2026)
 
@@ -615,4 +709,4 @@ Este projeto é de uso pessoal.
 
 ---
 
-**Viso v2.0.0** — Feito com Kotlin + Jetpack Compose ❤️
+**Viso v2.1.0** — Feito com Kotlin + Jetpack Compose ❤️

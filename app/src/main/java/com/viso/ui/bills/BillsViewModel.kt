@@ -55,7 +55,10 @@ data class BillsUiState(
     // Filter
     val filter: BillFilter = BillFilter.ALL,
     val paidBillsCount: Int = 0,
-    val pendingBillsCount: Int = 0
+    val pendingBillsCount: Int = 0,
+    // Separated sections
+    val recurringBills: List<Bill> = emptyList(),
+    val nonRecurringBills: List<Bill> = emptyList()
 )
 
 @HiltViewModel
@@ -104,6 +107,10 @@ class BillsViewModel @Inject constructor(
                 val totalBills = allBills.sumOf { it.amountCents }
                 val byCategory = filteredBills.groupBy { it.category }
 
+                // Separate recurring and non-recurring bills
+                val recurringBills = allBills.filter { it.isRecurring || it.isInstallment }
+                val nonRecurringBills = allBills.filter { !it.isRecurring && !it.isInstallment }
+
                 BillsUiState(
                     bills = filteredBills,
                     billsByCategory = byCategory,
@@ -112,7 +119,9 @@ class BillsViewModel @Inject constructor(
                     isLoading = false,
                     filter = currentFilter,
                     paidBillsCount = paidCount,
-                    pendingBillsCount = pendingCount
+                    pendingBillsCount = pendingCount,
+                    recurringBills = recurringBills,
+                    nonRecurringBills = nonRecurringBills
                 )
             }.collect { state ->
                 _uiState.update { current ->

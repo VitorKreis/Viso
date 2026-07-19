@@ -10,6 +10,7 @@ import com.viso.data.repository.BillRepository
 import com.viso.domain.model.Config
 import com.viso.domain.model.ExtraIncome
 import com.viso.domain.model.SalaryMode
+import com.viso.domain.usecase.CloseMonthUseCase
 import com.viso.domain.usecase.ScheduleNotificationsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +45,15 @@ data class ConfigUiState(
     val extraAmountCents: Long = 0L,
     val showResetDialog1: Boolean = false,
     val showResetDialog2: Boolean = false,
-    val isLoading: Boolean = true
+    val showCloseMonthDialog: Boolean = false,
+    val closingMonth: String = YearMonth.now().toString(),
+    val closeTotalBillsCents: Long = 0L,
+    val closePaidBillsCount: Int = 0,
+    val closeUnpaidBillsCount: Int = 0,
+    val closeExtraIncomeCents: Long = 0L,
+    val isClosingMonth: Boolean = false,
+    val isLoading: Boolean = true,
+    val isAutoReset: Boolean = true
 )
 
 @HiltViewModel
@@ -55,7 +64,8 @@ class ConfigViewModel @Inject constructor(
     private val db: VisoDB,
     private val goalRepo: GoalRepository,
     private val billRepo: BillRepository,
-    private val calculateRule: com.viso.domain.usecase.CalculateRuleUseCase
+    private val calculateRule: com.viso.domain.usecase.CalculateRuleUseCase,
+    private val closeMonthUseCase: CloseMonthUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConfigUiState())
@@ -76,8 +86,9 @@ class ConfigViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             combine(
                 configRepo.configFlow,
-                extraRepo.getByMonthFlow(currentMonth)
-            ) { config, extras ->
+                extraRepo.getByMonthFlow(currentMonth),
+                billRepo.getAllBillsFlow()
+            ) { config, extras, bills ->
                 ConfigUiState(
                     config = config,
                     salaryCents = config.salaryCents,
@@ -91,6 +102,12 @@ class ConfigViewModel @Inject constructor(
                     extras = extras,
                     notifEnabled = config.notifDaysBefore > 0,
                     notifDaysBefore = config.notifDaysBefore.coerceAtLeast(1),
+                    isAutoReset = config.isAutoReset,
+                    closingMonth = currentMonth,
+                    closeTotalBillsCents = bills.sumOf { it.amountCents },
+                    closePaidBillsCount = bills.count { it.isPaid },
+                    closeUnpaidBillsCount = bills.count { !it.isPaid },
+                    closeExtraIncomeCents = extras.sumOf { it.amountCents },
                     isLoading = false
                 )
             }.collect { state ->
@@ -100,7 +117,9 @@ class ConfigViewModel @Inject constructor(
                         extraName = current.extraName,
                         extraAmountCents = current.extraAmountCents,
                         showResetDialog1 = current.showResetDialog1,
-                        showResetDialog2 = current.showResetDialog2
+                        showResetDialog2 = current.showResetDialog2,
+                        showCloseMonthDialog = current.showCloseMonthDialog,
+                        isClosingMonth = current.isClosingMonth
                     )
                 }
             }
@@ -279,6 +298,50 @@ class ConfigViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _errorEvent.emit("Erro ao criar reserva de emergência: ${e.message}")
+            }
+        }
+    }
+
+    fun onAutoResetChange(enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                configRepo.updateAutoReset(enabled)
+            } catch (e: Exception) {
+                _errorEvent.emit("Erro ao atualizar configuração: ${e.message}")
+            }
+        }
+    }
+
+    fun requestCloseMonth() {
+        _uiState.update { it.copy(showCloseMonthDialog = true) }
+    }
+
+    fun cancelCloseMonth() {
+        _uiState.update { it.copy(showCloseMonthDialog = false) }
+    }
+
+    fun confirmCloseMonth() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isClosingMonth = true) }
+                val result = closeMonthUseCase()
+                _uiState.update {
+                    it.copy(
+                        showCloseMonthDialog = false,
+                        isClosingMonth = false
+                    )
+                }
+                val status = if (result.monthCompleted) {
+                    "mês completo"
+                } else {
+                    "${result.unpaidBillsCount} conta(s) pendente(s)"
+                }
+                _errorEvent.emit(
+                    "Mês ${result.month} fechado: ${result.paidBillsCount} paga(s), $status."
+                )
+            } catch (e: Exception) {
+                _errorEvent.emit("Erro ao fechar mês: ${e.message}")
+                _uiState.update { it.copy(isClosingMonth = false) }
             }
         }
     }

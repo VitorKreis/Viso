@@ -10,6 +10,7 @@ import com.viso.data.db.dao.ExtraIncomeDao
 import com.viso.data.db.dao.GoalDao
 import com.viso.data.db.dao.InstallmentBillDao
 import com.viso.data.db.dao.MonthHistoryDao
+import com.viso.data.db.dao.PaymentHistoryDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -77,6 +78,25 @@ object AppModule {
                     )
                 }
             })
+            .addMigrations(object : androidx.room.migration.Migration(4, 5) {
+                override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    // Create payment_history table
+                    database.execSQL(
+                        "CREATE TABLE IF NOT EXISTS payment_history (" +
+                                "id TEXT PRIMARY KEY NOT NULL, " +
+                                "month TEXT NOT NULL, " +
+                                "billId TEXT NOT NULL, " +
+                                "billName TEXT NOT NULL, " +
+                                "amountCents INTEGER NOT NULL, " +
+                                "category TEXT NOT NULL, " +
+                                "dueDay INTEGER NOT NULL, " +
+                                "paidAt INTEGER NOT NULL, " +
+                                "isRecurring INTEGER NOT NULL DEFAULT 0)"
+                    )
+                    // Create index on month for fast queries
+                    database.execSQL("CREATE INDEX IF NOT EXISTS index_payment_history_month ON payment_history(month)")
+                }
+            })
             .build()
 
     @Provides
@@ -98,7 +118,20 @@ object AppModule {
     fun provideAchievementDao(db: VisoDB): AchievementDao = db.achievementDao()
 
     @Provides
+    fun providePaymentHistoryDao(db: VisoDB): PaymentHistoryDao = db.paymentHistoryDao()
+
+    @Provides
     @Singleton
     fun provideConfigDataStore(@ApplicationContext context: Context): ConfigDataStore =
         ConfigDataStore(context)
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): com.google.firebase.auth.FirebaseAuth =
+        com.google.firebase.auth.FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(): com.google.firebase.firestore.FirebaseFirestore =
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
 }
