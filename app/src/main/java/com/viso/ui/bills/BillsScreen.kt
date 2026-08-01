@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.PieChart
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,6 +69,7 @@ import com.viso.ui.theme.Spacing
 import com.viso.ui.theme.TextPrimary
 import com.viso.ui.theme.TextSecondary
 import com.viso.ui.utils.formatCurrency
+import com.viso.domain.model.RadarLevel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -120,6 +124,30 @@ fun BillsScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             item {
+                val currentMonth = java.time.YearMonth.now()
+                val nextMonth = currentMonth.plusMonths(1)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = Spacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    FilterChip(
+                        selected = state.selectedMonth == currentMonth.toString(),
+                        onClick = { viewModel.setSelectedMonth(currentMonth.toString()) },
+                        label = { Text("Mês atual") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = state.selectedMonth == nextMonth.toString(),
+                        onClick = { viewModel.setSelectedMonth(nextMonth.toString()) },
+                        label = { Text("Próximo mês") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -129,7 +157,7 @@ fun BillsScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(modifier = Modifier.padding(Spacing.md)) {
-                            Text("Total contas", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text("Total ${state.selectedMonth}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                             Text(formatCurrency(state.totalBillsCents), style = MaterialTheme.typography.titleMedium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
@@ -140,6 +168,116 @@ fun BillsScreen(
                         Column(modifier = Modifier.padding(Spacing.md)) {
                             Text("Limite 70%", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                             Text(formatCurrency(state.rule.billsLimitCents), style = MaterialTheme.typography.titleMedium, color = AccentBlue, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (state.pendingBillsCents > 0) {
+                            AccentAmber.copy(alpha = 0.12f)
+                        } else {
+                            AccentGreen.copy(alpha = 0.12f)
+                        }
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Spacing.md),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Falta pagar", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text(
+                                if (state.pendingBillsCount == 0) {
+                                    "Nenhuma conta pendente"
+                                } else {
+                                    "${state.pendingBillsCount} conta(s) ainda abertas"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            formatCurrency(state.pendingBillsCents),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (state.pendingBillsCents > 0) AccentAmber else AccentGreen,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            if (!state.isMonthPrepared) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = AccentBlue.copy(alpha = 0.12f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(Spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                        ) {
+                            Text("Preparar ${state.currentMonth}", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                            Text(
+                                "Revise suas contas do mes. Ao adicionar uma conta nova ou confirmar a revisao, eu paro os lembretes.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                            Button(
+                                onClick = { viewModel.markMonthPrepared() },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                            ) {
+                                Icon(Icons.Rounded.CheckCircle, contentDescription = null)
+                                Text("Mes revisado")
+                            }
+                        }
+                    }
+                }
+            }
+
+            state.radar?.takeIf { it.shouldShow }?.let { radar ->
+                item {
+                    val radarColor = when (radar.level) {
+                        RadarLevel.CRITICAL, RadarLevel.RISK -> AccentRed
+                        RadarLevel.ATTENTION -> AccentAmber
+                        RadarLevel.OK -> AccentGreen
+                    }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = radarColor.copy(alpha = 0.12f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(Spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Radar financeiro", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                Icon(
+                                    if (radar.level == RadarLevel.ATTENTION) Icons.Rounded.Warning else Icons.Rounded.Error,
+                                    contentDescription = null,
+                                    tint = radarColor
+                                )
+                            }
+                            Text(radar.title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                            Text(radar.message, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                            if (radar.overLimitCents > 0) {
+                                Text("Estouro: ${formatCurrency(radar.overLimitCents)}", style = MaterialTheme.typography.titleMedium, color = radarColor)
+                            }
+                            Text(radar.action, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
                         }
                     }
                 }
@@ -232,7 +370,7 @@ fun BillsScreen(
                         BillFilter.ALL -> "Adicione suas contas fixas para começar"
                     }
                     EmptyState(
-                        icon = Icons.Rounded.ReceiptLong,
+                        icon = Icons.AutoMirrored.Rounded.ReceiptLong,
                         title = emptyTitle,
                         subtitle = emptySubtitle
                     )
@@ -343,7 +481,7 @@ private fun AddEditBillSheet(state: BillsUiState, viewModel: BillsViewModel) {
             VisoNumberPicker(
                 value = state.billDueDay,
                 onValueChange = { viewModel.onBillDueDayChange(it) },
-                range = 1..28,
+                range = 1..31,
                 label = "Vencimento",
                 displayTransform = { "Dia $it" }
             )
@@ -414,8 +552,10 @@ private fun AddEditBillSheet(state: BillsUiState, viewModel: BillsViewModel) {
                 }
 
                 Spacer(Modifier.height(Spacing.sm))
+                val currentMonth = java.time.YearMonth.now()
+                val nextMonth = currentMonth.plusMonths(1)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Mês associado", color = TextPrimary)
+                    Text("Mês da conta", color = TextPrimary)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = try { java.time.YearMonth.parse(state.billMonth).toString() } catch (_: Exception) { java.time.YearMonth.now().toString() },
@@ -423,6 +563,49 @@ private fun AddEditBillSheet(state: BillsUiState, viewModel: BillsViewModel) {
                             fontSize = 14.sp,
                             modifier = Modifier.clickable { viewModel.showMonthPicker() }
                         )
+                    }
+                }
+                Spacer(Modifier.height(Spacing.xs))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    FilterChip(
+                        selected = state.billMonth == currentMonth.toString(),
+                        onClick = { viewModel.onBillMonthChange(currentMonth.toString()) },
+                        label = { Text("Mês atual") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = state.billMonth == nextMonth.toString(),
+                        onClick = { viewModel.onBillMonthChange(nextMonth.toString()) },
+                        label = { Text("Próximo mês") },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            if (state.editingBill == null && state.billAmountCents > 0) {
+                val projectedTotal = state.totalBillsCents + state.billAmountCents
+                val projectedOverLimit = projectedTotal - state.rule.billsLimitCents
+                if (projectedOverLimit > 0) {
+                    Spacer(Modifier.height(Spacing.sm))
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = AccentRed.copy(alpha = 0.12f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(Spacing.md)) {
+                            Text(
+                                "Essa conta passa do limite",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary
+                            )
+                            Text(
+                                "Depois dela, suas contas ficam ${formatCurrency(projectedOverLimit)} acima do bloco de 70%.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextSecondary
+                            )
+                        }
                     }
                 }
             }

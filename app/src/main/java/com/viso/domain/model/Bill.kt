@@ -8,6 +8,7 @@ data class Bill(
     val category: String,
     val isPaid: Boolean,
     val paidMonth: String,
+    val dueMonth: String = "",
     val createdAt: Long,
     val isRecurring: Boolean = false,
     val isInstallment: Boolean = false,

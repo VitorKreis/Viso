@@ -5,13 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.viso.data.repository.BillRepository
 import com.viso.data.repository.ConfigRepository
 import com.viso.data.repository.ExtraIncomeRepository
+import com.viso.data.repository.GoalRepository
 import com.viso.data.repository.InstallmentBillRepository
 import com.viso.domain.model.Bill
+import com.viso.domain.model.FinancialRadar
 import com.viso.domain.model.InstallmentBill
+import com.viso.domain.usecase.CalculateFinancialRadarUseCase
 import com.viso.domain.usecase.CalculateRuleUseCase
 import com.viso.domain.usecase.FinancialRule
 import com.viso.domain.usecase.GenerateInstallmentBillsUseCase
 import com.viso.domain.usecase.ScheduleNotificationsUseCase
+import com.viso.domain.usecase.billDueMonth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -35,6 +39,7 @@ data class BillsUiState(
     val bills: List<Bill> = emptyList(),
     val billsByCategory: Map<String, List<Bill>> = emptyMap(),
     val totalBillsCents: Long = 0L,
+    val pendingBillsCents: Long = 0L,
     val rule: FinancialRule = FinancialRule(0, 0, 0, 0),
     val isLoading: Boolean = true,
     val showSheet: Boolean = false,
@@ -58,7 +63,11 @@ data class BillsUiState(
     val pendingBillsCount: Int = 0,
     // Separated sections
     val recurringBills: List<Bill> = emptyList(),
-    val nonRecurringBills: List<Bill> = emptyList()
+    val nonRecurringBills: List<Bill> = emptyList(),
+    val isMonthPrepared: Boolean = true,
+    val currentMonth: String = YearMonth.now().toString(),
+    val selectedMonth: String = YearMonth.now().toString(),
+    val radar: FinancialRadar? = null
 )
 
 @HiltViewModel
@@ -67,13 +76,17 @@ class BillsViewModel @Inject constructor(
     private val configRepo: ConfigRepository,
     private val extraRepo: ExtraIncomeRepository,
     private val installmentBillRepo: InstallmentBillRepository,
+    private val goalRepo: GoalRepository,
     private val calculateRule: CalculateRuleUseCase,
+    private val calculateRadar: CalculateFinancialRadarUseCase,
     private val scheduleNotif: ScheduleNotificationsUseCase,
     private val generateInstallmentBills: GenerateInstallmentBillsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BillsUiState())
     val uiState: StateFlow<BillsUiState> = _uiState.asStateFlow()
+    private val filterFlow = MutableStateFlow(BillFilter.ALL)
+    private val selectedMonthFlow = MutableStateFlow(YearMonth.now().toString())
 
     private val _errorEvent = MutableSharedFlow<String>()
     val errorEvent: SharedFlow<String> = _errorEvent.asSharedFlow()
@@ -85,43 +98,57 @@ class BillsViewModel @Inject constructor(
     private fun loadData() {
         val currentMonth = YearMonth.now().toString()
         viewModelScope.launch(Dispatchers.IO) {
+            val listControlsFlow = combine(filterFlow, selectedMonthFlow) { filter, selectedMonth ->
+                filter to selectedMonth
+            }
             combine(
                 configRepo.configFlow,
                 billRepo.getAllBillsFlow(),
-                extraRepo.getTotalForMonthFlow(currentMonth)
-            ) { config, allBills, extraTotal ->
+                goalRepo.getAllGoalsFlow(),
+                extraRepo.getTotalForMonthFlow(currentMonth),
+                listControlsFlow
+            ) { config, allBills, goals, extraTotal, listControls ->
+                val (currentFilter, selectedMonth) = listControls
+                val selectedYearMonth = parseMonth(selectedMonth)
+                val monthBills = allBills.filter { billDueMonth(it, selectedYearMonth) == selectedYearMonth }
                 val rule = calculateRule(config.effectiveSalaryCents, extraTotal)
+                val radar = calculateRadar(rule, monthBills, goals, selectedYearMonth)
 
                 // Count paid and pending bills
-                val paidCount = allBills.count { it.isPaid }
-                val pendingCount = allBills.size - paidCount
+                val paidCount = monthBills.count { it.isPaid }
+                val pendingCount = monthBills.size - paidCount
+                val pendingBillsTotal = monthBills.filter { !it.isPaid }.sumOf { it.amountCents }
 
                 // Apply filter based on current state
-                val currentFilter = _uiState.value.filter
                 val filteredBills = when (currentFilter) {
-                    BillFilter.ALL -> allBills
-                    BillFilter.PENDING -> allBills.filter { !it.isPaid }
-                    BillFilter.PAID -> allBills.filter { it.isPaid }
+                    BillFilter.ALL -> monthBills
+                    BillFilter.PENDING -> monthBills.filter { !it.isPaid }
+                    BillFilter.PAID -> monthBills.filter { it.isPaid }
                 }
 
-                val totalBills = allBills.sumOf { it.amountCents }
+                val totalBills = monthBills.sumOf { it.amountCents }
                 val byCategory = filteredBills.groupBy { it.category }
 
                 // Separate recurring and non-recurring bills
-                val recurringBills = allBills.filter { it.isRecurring || it.isInstallment }
-                val nonRecurringBills = allBills.filter { !it.isRecurring && !it.isInstallment }
+                val recurringBills = monthBills.filter { it.isRecurring || it.isInstallment }
+                val nonRecurringBills = monthBills.filter { !it.isRecurring && !it.isInstallment }
 
                 BillsUiState(
                     bills = filteredBills,
                     billsByCategory = byCategory,
                     totalBillsCents = totalBills,
+                    pendingBillsCents = pendingBillsTotal,
                     rule = rule,
                     isLoading = false,
                     filter = currentFilter,
                     paidBillsCount = paidCount,
                     pendingBillsCount = pendingCount,
                     recurringBills = recurringBills,
-                    nonRecurringBills = nonRecurringBills
+                    nonRecurringBills = nonRecurringBills,
+                    isMonthPrepared = config.monthSetupPreparedMonth == currentMonth,
+                    currentMonth = currentMonth,
+                    selectedMonth = selectedMonth,
+                    radar = radar
                 )
             }.collect { state ->
                 _uiState.update { current ->
@@ -132,6 +159,9 @@ class BillsViewModel @Inject constructor(
                         billAmountCents = current.billAmountCents,
                         billDueDay = current.billDueDay,
                         billCategory = current.billCategory,
+                        billIsRecurring = current.billIsRecurring,
+                        billMonth = current.billMonth,
+                        showMonthPicker = current.showMonthPicker,
                         showDeleteDialog = current.showDeleteDialog,
                         deletingBillId = current.deletingBillId,
                         isInstallment = current.isInstallment,
@@ -177,7 +207,7 @@ class BillsViewModel @Inject constructor(
                 billDueDay = bill.dueDay,
                 billCategory = bill.category,
                 billIsRecurring = bill.isRecurring,
-                billMonth = bill.paidMonth.ifBlank { YearMonth.now().toString() },
+                billMonth = bill.dueMonth.ifBlank { bill.paidMonth.ifBlank { YearMonth.now().toString() } },
                 showMonthPicker = false,
                 // Reset installment fields for regular edit
                 isInstallment = false
@@ -246,6 +276,7 @@ class BillsViewModel @Inject constructor(
         }
 
         viewModelScope.launch(Dispatchers.IO) {
+            val isEditing = state.editingBill != null
             try {
                 if (state.isInstallment && state.editingBill == null) {
                     // Create installment bill
@@ -254,10 +285,26 @@ class BillsViewModel @Inject constructor(
                     // Create or update regular bill
                     saveRegularBill(state)
                 }
-                scheduleNotif()
                 hideSheet()
+                selectedMonthFlow.value = state.billMonth
+                _errorEvent.emit(if (isEditing) "Conta atualizada." else "Conta criada.")
             } catch (e: Exception) {
-                _errorEvent.emit("Erro ao salvar conta: ${e.message}")
+                _errorEvent.emit(formatError(if (isEditing) "Erro ao atualizar conta" else "Erro ao criar conta", e))
+                return@launch
+            }
+
+            if (!isEditing) {
+                try {
+                    configRepo.markMonthPrepared(YearMonth.now().toString())
+                } catch (e: Exception) {
+                    _errorEvent.emit(formatError("Conta criada, mas não consegui pausar o lembrete de abertura do mês", e))
+                }
+            }
+
+            try {
+                scheduleNotif()
+            } catch (e: Exception) {
+                _errorEvent.emit(formatError("Conta salva, mas houve erro ao reagendar notificações", e))
             }
         }
     }
@@ -270,7 +317,8 @@ class BillsViewModel @Inject constructor(
             dueDay = state.billDueDay,
             category = state.billCategory,
             isRecurring = state.billIsRecurring,
-            paidMonth = state.billMonth,
+            paidMonth = if (state.editingBill?.isPaid == true) state.billMonth else state.editingBill?.paidMonth.orEmpty(),
+            dueMonth = state.billMonth,
             isPaid = state.editingBill?.isPaid ?: false,
             createdAt = state.editingBill?.createdAt ?: System.currentTimeMillis(),
             isInstallment = false
@@ -309,9 +357,11 @@ class BillsViewModel @Inject constructor(
     fun markAsPaid(billId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                billRepo.markAsPaid(billId, YearMonth.now().toString())
+                val bill = billRepo.getBillById(billId)
+                val paidMonth = bill?.let { billDueMonth(it).toString() } ?: YearMonth.now().toString()
+                billRepo.markAsPaid(billId, paidMonth)
             } catch (e: Exception) {
-                _errorEvent.emit("Erro ao marcar como paga: ${e.message}")
+                _errorEvent.emit(formatError("Erro ao marcar conta como paga", e))
             }
         }
     }
@@ -328,7 +378,7 @@ class BillsViewModel @Inject constructor(
                 scheduleNotif()
                 _uiState.update { it.copy(showDeleteDialog = false, deletingBillId = null) }
             } catch (e: Exception) {
-                _errorEvent.emit("Erro ao excluir conta: ${e.message}")
+                _errorEvent.emit(formatError("Erro ao excluir conta", e))
             }
         }
     }
@@ -338,8 +388,31 @@ class BillsViewModel @Inject constructor(
     }
 
     fun setFilter(filter: BillFilter) {
-        _uiState.update { it.copy(filter = filter) }
-        // Reload data to apply filter
-        loadData()
+        filterFlow.value = filter
     }
+
+    fun setSelectedMonth(month: String) {
+        selectedMonthFlow.value = month
+    }
+
+    fun markMonthPrepared() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                configRepo.markMonthPrepared(YearMonth.now().toString())
+                scheduleNotif()
+                _errorEvent.emit("Mes revisado. Lembretes de abertura pausados.")
+            } catch (e: Exception) {
+                _errorEvent.emit(formatError("Erro ao revisar mes", e))
+            }
+        }
+    }
+
+    private fun formatError(prefix: String, error: Throwable): String {
+        val type = error::class.simpleName ?: "Erro desconhecido"
+        val detail = error.message?.takeIf { it.isNotBlank() } ?: "sem detalhe técnico"
+        return "$prefix ($type): $detail"
+    }
+
+    private fun parseMonth(month: String): YearMonth =
+        runCatching { YearMonth.parse(month) }.getOrDefault(YearMonth.now())
 }

@@ -35,7 +35,8 @@ class CloseMonthUseCase @Inject constructor(
         val config = configRepo.getConfig()
         val monthString = month.toString()
 
-        val bills = billRepo.getAllBills()
+        val allBills = billRepo.getAllBills()
+        val bills = allBills.filter { billDueMonth(it, month) == month }
         val paidBills = bills.filter { it.isPaid }
         val unpaidBills = bills.filter { !it.isPaid }
         val totalBillsCents = bills.sumOf { it.amountCents }
@@ -72,7 +73,7 @@ class CloseMonthUseCase @Inject constructor(
             )
         )
 
-        billRepo.resetRecurringPaidStatus()
+        billRepo.resetRecurringPaidStatus(monthString, month.plusMonths(1).toString())
 
         val archivedBills = bills.filter { !it.isRecurring && it.isPaid }
         archivedBills.forEach { bill ->

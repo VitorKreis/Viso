@@ -17,7 +17,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Payments
@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.viso.domain.model.Bill
+import com.viso.domain.usecase.billDueMonth
 import com.viso.domain.usecase.BillStatus
 import com.viso.domain.usecase.getBillStatus
 import com.viso.ui.theme.AccentBlue
@@ -59,7 +60,7 @@ val categoryIcons = mapOf(
     "alimentacao" to Icons.Rounded.ShoppingCart,
     "transporte" to Icons.Rounded.DirectionsCar,
     "saude" to Icons.Rounded.Favorite,
-    "educacao" to Icons.Rounded.MenuBook,
+    "educacao" to Icons.AutoMirrored.Rounded.MenuBook,
     "utilidade" to Icons.Rounded.Bolt,
     "lazer" to Icons.Rounded.MusicNote,
     "outro" to Icons.Rounded.MoreHoriz
@@ -163,10 +164,11 @@ fun BillCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 // Show installment info if applicable
+                val dueMonth = billDueMonth(bill).toString()
                 val subtitle = if (bill.isInstallment && bill.installmentNumber != null && bill.totalInstallments != null) {
-                    "Parcela ${bill.installmentNumber}/${bill.totalInstallments} · Dia ${bill.dueDay}"
+                    "Parcela ${bill.installmentNumber}/${bill.totalInstallments} · $dueMonth · Dia ${bill.dueDay}"
                 } else {
-                    "Dia ${bill.dueDay} · ${bill.category}"
+                    "$dueMonth · Dia ${bill.dueDay} · ${bill.category}"
                 }
                 Text(
                     text = subtitle,

@@ -388,7 +388,7 @@ private fun BillFormInline(state: OnboardingUiState, viewModel: OnboardingViewMo
             VisoNumberPicker(
                 value = state.billDueDay,
                 onValueChange = { viewModel.onBillDueDayChange(it) },
-                range = 1..28,
+                range = 1..31,
                 label = "Vencimento",
                 displayTransform = { "Dia $it" }
             )

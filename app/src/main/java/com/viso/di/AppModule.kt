@@ -27,20 +27,20 @@ object AppModule {
     fun provideDatabase(@ApplicationContext context: Context): VisoDB =
         Room.databaseBuilder(context, VisoDB::class.java, "viso.db")
             .addMigrations(object : androidx.room.migration.Migration(1, 2) {
-                override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
-                    database.execSQL("ALTER TABLE bills ADD COLUMN isRecurring INTEGER NOT NULL DEFAULT 0")
-                    database.execSQL(
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE bills ADD COLUMN isRecurring INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL(
                         "INSERT OR REPLACE INTO goals (id, name, targetAmountCents, currentAmountCents, monthlyContributionCents, isEmergencyFund, color, createdAt) " +
                                 "SELECT 'emergency_fund', name, targetAmountCents, currentAmountCents, monthlyContributionCents, isEmergencyFund, color, createdAt " +
                                 "FROM goals WHERE isEmergencyFund = 1 ORDER BY createdAt ASC LIMIT 1"
                     )
-                    database.execSQL("DELETE FROM goals WHERE isEmergencyFund = 1 AND id <> 'emergency_fund'")
+                    db.execSQL("DELETE FROM goals WHERE isEmergencyFund = 1 AND id <> 'emergency_fund'")
                 }
             })
             .addMigrations(object : androidx.room.migration.Migration(2, 3) {
-                override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     // Create installment_bills table
-                    database.execSQL(
+                    db.execSQL(
                         "CREATE TABLE IF NOT EXISTS installment_bills (" +
                                 "id TEXT PRIMARY KEY NOT NULL, " +
                                 "name TEXT NOT NULL, " +
@@ -54,16 +54,16 @@ object AppModule {
                                 "createdAt INTEGER NOT NULL)"
                     )
                     // Add installment columns to bills table
-                    database.execSQL("ALTER TABLE bills ADD COLUMN isInstallment INTEGER NOT NULL DEFAULT 0")
-                    database.execSQL("ALTER TABLE bills ADD COLUMN installmentNumber INTEGER")
-                    database.execSQL("ALTER TABLE bills ADD COLUMN totalInstallments INTEGER")
-                    database.execSQL("ALTER TABLE bills ADD COLUMN parentInstallmentId TEXT")
+                    db.execSQL("ALTER TABLE bills ADD COLUMN isInstallment INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("ALTER TABLE bills ADD COLUMN installmentNumber INTEGER")
+                    db.execSQL("ALTER TABLE bills ADD COLUMN totalInstallments INTEGER")
+                    db.execSQL("ALTER TABLE bills ADD COLUMN parentInstallmentId TEXT")
                 }
             })
             .addMigrations(object : androidx.room.migration.Migration(3, 4) {
-                override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     // Create achievements table
-                    database.execSQL(
+                    db.execSQL(
                         "CREATE TABLE IF NOT EXISTS achievements (" +
                                 "id TEXT PRIMARY KEY NOT NULL, " +
                                 "type TEXT NOT NULL, " +
@@ -79,9 +79,9 @@ object AppModule {
                 }
             })
             .addMigrations(object : androidx.room.migration.Migration(4, 5) {
-                override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     // Create payment_history table
-                    database.execSQL(
+                    db.execSQL(
                         "CREATE TABLE IF NOT EXISTS payment_history (" +
                                 "id TEXT PRIMARY KEY NOT NULL, " +
                                 "month TEXT NOT NULL, " +
@@ -94,7 +94,12 @@ object AppModule {
                                 "isRecurring INTEGER NOT NULL DEFAULT 0)"
                     )
                     // Create index on month for fast queries
-                    database.execSQL("CREATE INDEX IF NOT EXISTS index_payment_history_month ON payment_history(month)")
+                    db.execSQL("CREATE INDEX IF NOT EXISTS index_payment_history_month ON payment_history(month)")
+                }
+            })
+            .addMigrations(object : androidx.room.migration.Migration(5, 6) {
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE bills ADD COLUMN dueMonth TEXT NOT NULL DEFAULT ''")
                 }
             })
             .build()

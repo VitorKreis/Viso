@@ -40,4 +40,6 @@ class ConfigRepository @Inject constructor(
     suspend fun updateNotifHour(hour: Int) = configDataStore.updateNotifHour(hour)
 
     suspend fun updateAutoReset(enabled: Boolean) = configDataStore.updateAutoReset(enabled)
+
+    suspend fun markMonthPrepared(month: String) = configDataStore.markMonthPrepared(month)
 }

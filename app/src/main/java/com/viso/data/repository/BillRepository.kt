@@ -26,7 +26,13 @@ class BillRepository @Inject constructor(
         // Prevent accidental duplicates: if a bill with the same
         // name/amount/dueDay/category exists, reuse its id and replace it.
         run {
-            val existing = billDao.findDuplicate(bill.name, bill.amountCents, bill.dueDay, bill.category)
+            val existing = billDao.findDuplicate(
+                bill.name,
+                bill.amountCents,
+                bill.dueDay,
+                bill.category,
+                bill.dueMonth
+            )
             val toInsert = if (existing != null) bill.copy(id = existing.id) else bill
             billDao.insert(toInsert.toEntity())
         }
@@ -55,8 +61,8 @@ class BillRepository @Inject constructor(
         return billDao.getCategorySpending(month).associate { it.category to it.total }
     }
 
-    suspend fun resetRecurringPaidStatus() {
-        billDao.resetRecurringPaidStatus()
+    suspend fun resetRecurringPaidStatus(closedMonth: String, nextMonth: String) {
+        billDao.resetRecurringPaidStatus(closedMonth, nextMonth)
     }
 
     // Firestore sync methods
@@ -84,6 +90,7 @@ class BillRepository @Inject constructor(
         category = category,
         isPaid = isPaid,
         paidMonth = paidMonth,
+        dueMonth = dueMonth,
         createdAt = createdAt,
         isRecurring = isRecurring,
         isInstallment = isInstallment,
@@ -100,6 +107,7 @@ class BillRepository @Inject constructor(
         category = category,
         isPaid = isPaid,
         paidMonth = paidMonth,
+        dueMonth = dueMonth,
         createdAt = createdAt,
         isRecurring = isRecurring,
         isInstallment = isInstallment,

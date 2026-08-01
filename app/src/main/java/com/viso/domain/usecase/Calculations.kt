@@ -22,13 +22,21 @@ fun clampDayToMonth(day: Int, year: Int, month: Int): Int {
     return day.coerceIn(1, maxDay)
 }
 
+fun billDueMonth(bill: Bill, fallback: YearMonth = YearMonth.now()): YearMonth {
+    val month = bill.dueMonth.ifBlank { bill.paidMonth }
+    return runCatching { YearMonth.parse(month) }.getOrDefault(fallback)
+}
+
+fun billDueDate(bill: Bill, fallback: YearMonth = YearMonth.now()): LocalDate {
+    val month = billDueMonth(bill, fallback)
+    return month.atDay(clampDayToMonth(bill.dueDay, month.year, month.monthValue))
+}
+
 enum class BillStatus { PAID, TODAY, UPCOMING, OVERDUE, FUTURE }
 
 fun getBillStatus(bill: Bill, today: LocalDate): BillStatus {
     if (bill.isPaid) return BillStatus.PAID
-    val dueDate = today.withDayOfMonth(
-        clampDayToMonth(bill.dueDay, today.year, today.monthValue)
-    )
+    val dueDate = billDueDate(bill, YearMonth.from(today))
     return when {
         dueDate == today -> BillStatus.TODAY
         dueDate < today -> BillStatus.OVERDUE

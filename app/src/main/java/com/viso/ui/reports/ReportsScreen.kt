@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,7 +50,7 @@ fun ReportsScreen(
             TopAppBar(
                 title = { Text("Relatórios") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, contentDescription = "Voltar") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Voltar") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BgApp)
             )
@@ -83,7 +83,7 @@ fun ReportsScreen(
             val max = (values.maxOrNull() ?: 1L).coerceAtLeast(1L)
 
             Row(modifier = Modifier.fillMaxWidth().height(180.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
-                months.forEachIndexed { idx, m ->
+                months.forEachIndexed { idx, _ ->
                     val v = values.getOrNull(idx) ?: 0L
                     val heightPct = v.toFloat() / max.toFloat()
                     Box(

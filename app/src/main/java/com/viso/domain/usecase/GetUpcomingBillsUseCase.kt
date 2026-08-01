@@ -13,9 +13,7 @@ class GetUpcomingBillsUseCase @Inject constructor(
         val bills = billRepo.getAllBills()
         return bills.filter { bill ->
             if (bill.isPaid) return@filter false
-            val dueDate = today.withDayOfMonth(
-                clampDayToMonth(bill.dueDay, today.year, today.monthValue)
-            )
+            val dueDate = billDueDate(bill, java.time.YearMonth.from(today))
             dueDate in today..today.plusDays(days.toLong())
         }
     }

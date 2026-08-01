@@ -72,9 +72,6 @@ fun MonthCalendar(
             }
         }
 
-        val totalCells = firstDayOfWeek + daysInMonth
-        val rows = (totalCells + 6) / 7
-
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val cellSize = (maxWidth / 7)
 

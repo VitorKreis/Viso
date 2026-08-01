@@ -27,19 +27,20 @@ import com.viso.ui.theme.AccentTeal
 fun RuleBar(rule: FinancialRule, modifier: Modifier = Modifier) {
     var animate by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { animate = true }
+    val total = rule.totalCents.coerceAtLeast(1L).toFloat()
 
     val billsFraction by animateFloatAsState(
-        targetValue = if (animate) 0.70f else 0f,
+        targetValue = if (animate) rule.billsLimitCents / total else 0f,
         animationSpec = tween(800),
         label = "bills"
     )
     val spendingFraction by animateFloatAsState(
-        targetValue = if (animate) 0.20f else 0f,
+        targetValue = if (animate) rule.spendingCents / total else 0f,
         animationSpec = tween(800),
         label = "spending"
     )
     val savingsFraction by animateFloatAsState(
-        targetValue = if (animate) 0.10f else 0f,
+        targetValue = if (animate) rule.savingsCents / total else 0f,
         animationSpec = tween(800),
         label = "savings"
     )

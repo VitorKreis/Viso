@@ -128,6 +128,7 @@ class OnboardingViewModel @Inject constructor(
             category = state.billCategory,
             isPaid = false,
             paidMonth = "",
+            dueMonth = YearMonth.now().toString(),
             createdAt = System.currentTimeMillis()
         )
         val newBills = state.bills + bill
@@ -173,6 +174,7 @@ class OnboardingViewModel @Inject constructor(
                     configRepo.updateSalary(effectiveSalary)
                 }
                 configRepo.updateLastResetMonth(YearMonth.now().toString())
+                configRepo.markMonthPrepared(YearMonth.now().toString())
 
                 state.bills.forEach { bill -> billRepo.insert(bill) }
 

@@ -35,6 +35,7 @@ object ConfigKeys {
     val MAX_STREAK = intPreferencesKey("max_streak")
     val NOTIF_HOUR = intPreferencesKey("notif_hour")
     val AUTO_RESET = booleanPreferencesKey("auto_reset")
+    val MONTH_SETUP_PREPARED_MONTH = stringPreferencesKey("month_setup_prepared_month")
 }
 
 @Singleton
@@ -60,7 +61,8 @@ class ConfigDataStore @Inject constructor(
             currentStreak = prefs[ConfigKeys.CURRENT_STREAK] ?: 0,
             maxStreak = prefs[ConfigKeys.MAX_STREAK] ?: 0,
             notifHour = prefs[ConfigKeys.NOTIF_HOUR] ?: 9,
-            isAutoReset = prefs[ConfigKeys.AUTO_RESET] ?: true
+            isAutoReset = prefs[ConfigKeys.AUTO_RESET] ?: true,
+            monthSetupPreparedMonth = prefs[ConfigKeys.MONTH_SETUP_PREPARED_MONTH] ?: ""
         )
     }
 
@@ -119,6 +121,10 @@ class ConfigDataStore @Inject constructor(
 
     suspend fun updateAutoReset(enabled: Boolean) {
         context.dataStore.edit { it[ConfigKeys.AUTO_RESET] = enabled }
+    }
+
+    suspend fun markMonthPrepared(month: String) {
+        context.dataStore.edit { it[ConfigKeys.MONTH_SETUP_PREPARED_MONTH] = month }
     }
 
     suspend fun clearAll() {

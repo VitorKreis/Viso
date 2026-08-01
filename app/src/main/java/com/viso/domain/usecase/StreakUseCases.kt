@@ -29,7 +29,8 @@ class CalculateStreaksUseCase @Inject constructor(
 
             // Calculate if last month was completed (all bills paid)
             val lastMonthCompleted = if (lastResetMonth.isNotBlank() && lastResetMonth != currentMonth.toString()) {
-                val lastMonthBills = bills.filter { it.paidMonth == lastResetMonth }
+                val lastMonth = YearMonth.parse(lastResetMonth)
+                val lastMonthBills = bills.filter { billDueMonth(it, lastMonth) == lastMonth }
                 lastMonthBills.isNotEmpty() && lastMonthBills.all { it.isPaid }
             } else {
                 false
@@ -40,9 +41,7 @@ class CalculateStreaksUseCase @Inject constructor(
             val maxStreak = config.maxStreak
 
             // Calculate this month's progress
-            val currentMonthBills = bills.filter { 
-                it.paidMonth.isBlank() || it.paidMonth == currentMonth.toString() 
-            }
+            val currentMonthBills = bills.filter { billDueMonth(it, currentMonth) == currentMonth }
             val totalBills = currentMonthBills.size
             val paidBills = currentMonthBills.count { it.isPaid }
             val thisMonthProgress = if (totalBills > 0) paidBills.toFloat() / totalBills.toFloat() else 0f

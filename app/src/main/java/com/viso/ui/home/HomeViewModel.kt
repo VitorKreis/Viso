@@ -5,17 +5,22 @@ import androidx.lifecycle.viewModelScope
 import com.viso.data.repository.BillRepository
 import com.viso.data.repository.ConfigRepository
 import com.viso.data.repository.ExtraIncomeRepository
+import com.viso.data.repository.GoalRepository
 import com.viso.domain.model.Bill
 import com.viso.domain.model.Config
 import com.viso.domain.model.ExtraIncome
+import com.viso.domain.model.FinancialRadar
 import com.viso.domain.model.SalaryMode
 import com.viso.domain.model.SalaryPart
 import com.viso.domain.model.StreakInfo
 import com.viso.domain.model.distributeBillsByPart
+import com.viso.domain.usecase.CalculateFinancialRadarUseCase
 import com.viso.domain.usecase.CalculateRuleUseCase
 import com.viso.domain.usecase.CalculateStreaksUseCase
 import com.viso.domain.usecase.FinancialRule
 import com.viso.domain.usecase.MonthlyResetUseCase
+import com.viso.domain.usecase.ScheduleNotificationsUseCase
+import com.viso.domain.usecase.billDueMonth
 import com.viso.domain.usecase.billsMargin
 import com.viso.domain.usecase.getBillStatus
 import com.viso.domain.usecase.BillStatus
@@ -50,7 +55,10 @@ data class HomeUiState(
     val extraAmountCents: Long = 0L,
     val part1: SalaryPart? = null,
     val part2: SalaryPart? = null,
-    val streakInfo: StreakInfo? = null
+    val streakInfo: StreakInfo? = null,
+    val isMonthPrepared: Boolean = true,
+    val currentMonth: String = YearMonth.now().toString(),
+    val radar: FinancialRadar? = null
 )
 
 @HiltViewModel
@@ -58,9 +66,12 @@ class HomeViewModel @Inject constructor(
     private val configRepo: ConfigRepository,
     private val billRepo: BillRepository,
     private val extraRepo: ExtraIncomeRepository,
+    private val goalRepo: GoalRepository,
     private val resetUseCase: MonthlyResetUseCase,
     private val calculateRule: CalculateRuleUseCase,
-    private val calculateStreaks: CalculateStreaksUseCase
+    private val calculateStreaks: CalculateStreaksUseCase,
+    private val calculateRadar: CalculateFinancialRadarUseCase,
+    private val scheduleNotifications: ScheduleNotificationsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -87,14 +98,19 @@ class HomeViewModel @Inject constructor(
             combine(
                 configRepo.configFlow,
                 billRepo.getAllBillsFlow(),
+                goalRepo.getAllGoalsFlow(),
                 extraRepo.getByMonthFlow(currentMonth),
                 calculateStreaks()
-            ) { config, bills, extras, streakInfo ->
+            ) { config, bills, goals, extras, streakInfo ->
+                val currentYearMonth = YearMonth.parse(currentMonth)
+                val currentBills = bills.filter { billDueMonth(it, currentYearMonth) == currentYearMonth }
                 val extraTotal = extras.sumOf { it.amountCents }
                 val effectiveSalary = config.effectiveSalaryCents
                 val rule = calculateRule(effectiveSalary, extraTotal)
-                val totalBills = bills.sumOf { it.amountCents }
+                val totalBills = currentBills.sumOf { it.amountCents }
                 val margin = billsMargin(rule.billsLimitCents, totalBills)
+                val isPrepared = config.monthSetupPreparedMonth == currentMonth
+                val radar = calculateRadar(rule, currentBills, goals, currentYearMonth)
                 val today = LocalDate.now()
                 val upcoming = bills.filter { bill ->
                     val status = getBillStatus(bill, today)
@@ -104,7 +120,7 @@ class HomeViewModel @Inject constructor(
                 var part1: SalaryPart? = null
                 var part2: SalaryPart? = null
                 if (config.salaryMode == SalaryMode.SPLIT) {
-                    val (p1Bills, p2Bills) = distributeBillsByPart(bills, config.payday1, config.payday2)
+                    val (p1Bills, p2Bills) = distributeBillsByPart(currentBills, config.payday1, config.payday2)
                     val p1Total = p1Bills.sumOf { it.amountCents }
                     val p2Total = p2Bills.sumOf { it.amountCents }
                     part1 = SalaryPart(
@@ -126,7 +142,7 @@ class HomeViewModel @Inject constructor(
                 HomeUiState(
                     config = config,
                     rule = rule,
-                    bills = bills,
+                    bills = currentBills,
                     extras = extras,
                     upcomingBills = upcoming,
                     totalBillsCents = totalBills,
@@ -135,7 +151,10 @@ class HomeViewModel @Inject constructor(
                     isLoading = false,
                     part1 = part1,
                     part2 = part2,
-                    streakInfo = streakInfo
+                    streakInfo = streakInfo,
+                    isMonthPrepared = isPrepared,
+                    currentMonth = currentMonth,
+                    radar = radar
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -175,6 +194,18 @@ class HomeViewModel @Inject constructor(
                 hideAddExtra()
             } catch (e: Exception) {
                 _errorEvent.emit("Erro ao adicionar entrada: ${e.message}")
+            }
+        }
+    }
+
+    fun markMonthPrepared() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                configRepo.markMonthPrepared(YearMonth.now().toString())
+                scheduleNotifications()
+                _errorEvent.emit("Mes preparado. Vou parar os lembretes deste ciclo.")
+            } catch (e: Exception) {
+                _errorEvent.emit("Erro ao preparar mes: ${e.message}")
             }
         }
     }

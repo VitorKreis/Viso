@@ -51,6 +51,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.viso.domain.model.SalaryMode
 import com.viso.domain.model.SalaryPart
+import com.viso.domain.model.FinancialRadar
+import com.viso.domain.model.RadarLevel
 import com.viso.ui.components.BillCard
 import com.viso.ui.components.CurrencyTextField
 import com.viso.ui.components.EmptyState
@@ -138,6 +140,16 @@ fun HomeScreen(
                 .padding(horizontal = Spacing.lg),
             verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
+            if (!state.isMonthPrepared) {
+                item {
+                    MonthSetupCard(
+                        month = state.currentMonth,
+                        billsCount = state.bills.size,
+                        onConfirm = { viewModel.markMonthPrepared() }
+                    )
+                }
+            }
+
             // Block 1 - Balance
             if (state.config.salaryMode == SalaryMode.SPLIT && state.part1 != null && state.part2 != null) {
                 item {
@@ -193,6 +205,12 @@ fun HomeScreen(
                         maxStreak = state.streakInfo?.maxStreak ?: 0,
                         onClick = onNavigateToStreaks
                     )
+                }
+            }
+
+            state.radar?.takeIf { it.shouldShow }?.let { radar ->
+                item {
+                    FinancialRadarCard(radar = radar)
                 }
             }
 
@@ -321,6 +339,119 @@ fun HomeScreen(
                     Spacer(Modifier.height(Spacing.xxl))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MonthSetupCard(
+    month: String,
+    billsCount: Int,
+    onConfirm: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = AccentBlue.copy(alpha = 0.12f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            Text(
+                text = "Preparar $month",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary
+            )
+            Text(
+                text = if (billsCount > 0) {
+                    "Revise suas contas recorrentes e adicione o que mudou neste mes."
+                } else {
+                    "Novo mes comecou. Cadastre suas contas antes de gastar."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+            ) {
+                ChecklistText("Contas")
+                ChecklistText("Parcelas")
+                ChecklistText("Reserva")
+            }
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+            ) {
+                Text("Mes revisado")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChecklistText(text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
+    ) {
+        Icon(
+            Icons.Rounded.CheckCircle,
+            contentDescription = null,
+            tint = AccentBlue,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(text, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+    }
+}
+
+@Composable
+private fun FinancialRadarCard(radar: FinancialRadar) {
+    val color = when (radar.level) {
+        RadarLevel.CRITICAL, RadarLevel.RISK -> AccentRed
+        RadarLevel.ATTENTION -> AccentAmber
+        RadarLevel.OK -> AccentGreen
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.12f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(Spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Radar financeiro",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+                Icon(
+                    imageVector = if (radar.level == RadarLevel.ATTENTION) Icons.Rounded.Warning else Icons.Rounded.Error,
+                    contentDescription = null,
+                    tint = color
+                )
+            }
+            Text(radar.title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+            Text(radar.message, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            if (radar.overLimitCents > 0) {
+                Text(
+                    text = "Estouro: ${formatCurrency(radar.overLimitCents)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = color
+                )
+            }
+            Text(
+                text = radar.action,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextPrimary
+            )
         }
     }
 }

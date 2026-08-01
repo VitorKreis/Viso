@@ -29,7 +29,8 @@ class MonthlyResetUseCase @Inject constructor(
         if (config.lastResetMonth == currentMonth) return
 
         if (config.lastResetMonth.isNotEmpty()) {
-            val bills = billRepo.getAllBills()
+            val closedMonth = YearMonth.parse(config.lastResetMonth)
+            val bills = billRepo.getAllBills().filter { billDueMonth(it, closedMonth) == closedMonth }
             val totalBillsCents = bills.sumOf { it.amountCents }
             val extraTotal = extraIncomeRepo.getTotalForMonth(config.lastResetMonth)
             val rule = CalculateRuleUseCase()(config.effectiveSalaryCents, extraTotal)
@@ -67,7 +68,7 @@ class MonthlyResetUseCase @Inject constructor(
             )
 
             // 3. Reset paid status for recurring bills only
-            billRepo.resetRecurringPaidStatus()
+            billRepo.resetRecurringPaidStatus(config.lastResetMonth, currentMonth)
             
             // 4. Delete avulsas (non-recurring) that were paid
             bills.filter { !it.isRecurring && it.isPaid }.forEach { bill ->

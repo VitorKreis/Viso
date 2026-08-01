@@ -24,8 +24,8 @@ interface BillDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(bill: BillEntity)
 
-    @Query("SELECT * FROM bills WHERE name = :name AND amountCents = :amountCents AND dueDay = :dueDay AND category = :category LIMIT 1")
-    suspend fun findDuplicate(name: String, amountCents: Long, dueDay: Int, category: String): BillEntity?
+    @Query("SELECT * FROM bills WHERE name = :name AND amountCents = :amountCents AND dueDay = :dueDay AND category = :category AND dueMonth = :dueMonth LIMIT 1")
+    suspend fun findDuplicate(name: String, amountCents: Long, dueDay: Int, category: String, dueMonth: String): BillEntity?
 
     @Update
     suspend fun update(bill: BillEntity)
@@ -36,7 +36,7 @@ interface BillDao {
     @Query("DELETE FROM bills WHERE id = :id")
     suspend fun deleteById(id: String)
 
-    @Query("UPDATE bills SET isPaid = 0, paidMonth = :month WHERE isPaid = 1")
+    @Query("UPDATE bills SET isPaid = 0, paidMonth = '', dueMonth = :month WHERE isPaid = 1")
     suspend fun resetAllPaidStatus(month: String)
 
     @Query("UPDATE bills SET isPaid = 1, paidMonth = :month WHERE id = :id")
@@ -45,8 +45,8 @@ interface BillDao {
     @Query("UPDATE bills SET isPaid = 0 WHERE id = :id")
     suspend fun markAsUnpaid(id: String)
 
-    @Query("UPDATE bills SET isPaid = 0, paidMonth = '' WHERE isRecurring = 1 AND isPaid = 1")
-    suspend fun resetRecurringPaidStatus()
+    @Query("UPDATE bills SET isPaid = 0, paidMonth = '', dueMonth = :nextMonth WHERE isRecurring = 1 AND isPaid = 1 AND (dueMonth = :closedMonth OR dueMonth = '')")
+    suspend fun resetRecurringPaidStatus(closedMonth: String, nextMonth: String)
 
     @Query("SELECT category, SUM(amountCents) as total FROM bills WHERE paidMonth = :month GROUP BY category")
     suspend fun getCategorySpending(month: String): List<com.viso.data.db.entity.CategorySpendTuple>

@@ -15,6 +15,7 @@ import com.viso.ui.theme.AccentBlue
 import com.viso.ui.theme.AccentGreen
 import com.viso.ui.theme.AccentRed
 import com.viso.domain.usecase.BillStatus
+import com.viso.domain.usecase.billDueMonth
 import com.viso.domain.usecase.clampDayToMonth
 import com.viso.domain.usecase.getBillStatus
 import com.viso.ui.utils.formatCurrency
@@ -82,7 +83,7 @@ class AgendaViewModel @Inject constructor(
         val calendarEvents = mutableListOf<CalendarEvent>()
         val agendaEvents = mutableListOf<AgendaEvent>()
 
-        bills.forEach { bill ->
+        bills.filter { billDueMonth(it, ym) == ym }.forEach { bill ->
             val day = clampDayToMonth(bill.dueDay, ym.year, ym.monthValue)
             val status = getBillStatus(bill, today)
             val color = when (status) {

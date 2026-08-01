@@ -48,4 +48,21 @@ class NotificationHelper @Inject constructor(
                 .notify(billId.hashCode(), notification)
         }
     }
+
+    fun showMonthSetupNotification(month: String) {
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Novo mes no Viso")
+            .setContentText("Revise as contas de $month antes de assumir novos gastos.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+
+        if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            NotificationManagerCompat.from(context)
+                .notify("month_setup_$month".hashCode(), notification)
+        }
+    }
 }

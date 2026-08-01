@@ -48,13 +48,17 @@ class BillRepositoryTest {
         }
 
         override suspend fun resetAllPaidStatus(month: String) {
-            items.replaceAll { it.copy(isPaid = false, paidMonth = month) }
+            items.replaceAll { it.copy(isPaid = false, paidMonth = "", dueMonth = month) }
             flow.value = items.toList()
         }
 
-        override suspend fun resetRecurringPaidStatus() {
+        override suspend fun resetRecurringPaidStatus(closedMonth: String, nextMonth: String) {
             items.replaceAll {
-                if (it.isRecurring && it.isPaid) it.copy(isPaid = false, paidMonth = "") else it
+                if (it.isRecurring && it.isPaid && (it.dueMonth == closedMonth || it.dueMonth.isBlank())) {
+                    it.copy(isPaid = false, paidMonth = "", dueMonth = nextMonth)
+                } else {
+                    it
+                }
             }
             flow.value = items.toList()
         }
@@ -69,8 +73,14 @@ class BillRepositoryTest {
             flow.value = items.toList()
         }
 
-        override suspend fun findDuplicate(name: String, amountCents: Long, dueDay: Int, category: String): BillEntity? {
-            return items.find { it.name == name && it.amountCents == amountCents && it.dueDay == dueDay && it.category == category }
+        override suspend fun findDuplicate(name: String, amountCents: Long, dueDay: Int, category: String, dueMonth: String): BillEntity? {
+            return items.find {
+                it.name == name &&
+                        it.amountCents == amountCents &&
+                        it.dueDay == dueDay &&
+                        it.category == category &&
+                        it.dueMonth == dueMonth
+            }
         }
 
         override suspend fun getCategorySpending(month: String): List<CategorySpendTuple> =

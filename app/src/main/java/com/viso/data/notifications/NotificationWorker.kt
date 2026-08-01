@@ -10,10 +10,10 @@ import androidx.work.WorkerParameters
 import com.viso.R
 import com.viso.data.repository.BillRepository
 import com.viso.data.repository.ConfigRepository
+import com.viso.domain.usecase.billDueDate
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.LocalDate
-import java.time.YearMonth
 
 @HiltWorker
 class NotificationWorker @AssistedInject constructor(
@@ -29,13 +29,11 @@ class NotificationWorker @AssistedInject constructor(
 
         val today = LocalDate.now()
         val targetDate = today.plusDays(config.notifDaysBefore.toLong())
-        val targetMonth = YearMonth.now().toString()
 
         val bills = billRepo.getAllBills()
         val upcomingBills = bills.filter { bill ->
             !bill.isPaid &&
-            bill.dueDay == targetDate.dayOfMonth &&
-            bill.paidMonth != targetMonth
+            billDueDate(bill, java.time.YearMonth.from(today)) == targetDate
         }
 
         if (upcomingBills.isEmpty()) return Result.success()

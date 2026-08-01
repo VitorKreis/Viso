@@ -35,6 +35,8 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 
 ### 🏠 Dashboard (Home)
 - Visão geral do salário e distribuição financeira
+- **Abertura do Mês** — Card para revisar o novo mês e parar lembretes após confirmação
+- **Radar Financeiro** — Diagnóstico simples quando o mês entra em atenção, risco ou crítico
 - Cards de resumo da regra 70-20-10 com barra visual
 - Status de contas fixas vs. limite de 70%
 - Indicador de margem (verde/amarelo/vermelho)
@@ -45,12 +47,19 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 
 ### 📄 Contas Fixas (Bills)
 - Cadastro de contas com nome, valor, dia de vencimento e categoria
+- Controle por mês da conta: mês atual ou próximo mês, útil para contas pagas antecipadamente
+- Campo "Falta pagar" com o total ainda pendente no mês selecionado
+- Vencimentos do dia 1 ao 31, com ajuste automático em meses mais curtos
+- Aviso antes de salvar quando uma nova conta estoura o limite de 70%
+- Modal de criação/edição fecha automaticamente após salvar
+- Mensagens de erro mais descritivas, separando erro de persistência de erro de notificação
 - **🔄 Contas Parceladas** — Cadastre compras parceladas (2-48x), o app calcula e gera as parcelas automaticamente
 - 8 categorias: Moradia, Alimentação, Transporte, Saúde, Educação, Utilidade, Lazer, Outro
 - Agrupamento por categoria com sticky headers
 - Swipe para marcar como pago (→) ou excluir (←)
 - Status automático: Pago, Hoje, Próximo, Atrasado, Futuro
 - **🎛️ Filtros** — Visualize: Todas | Pendentes | Pagas
+- Filtro rápido entre mês atual e próximo mês
 - **🎉 Mensagem de sucesso** quando todas as contas estão pagas
 - Picker personalizado de dia (drum-roll) e categoria (chips com ícones)
 - Badge visual para contas parceladas (Parcela X/Y)
@@ -117,6 +126,7 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 
 ### 🔔 Notificações
 - Alarmes exatos para lembrar de contas próximas ao vencimento
+- Lembrete de abertura do mês enquanto o mês ainda não foi revisado
 - Reagendamento automático após reinicialização do dispositivo
 - Configurável de 1 a 7 dias de antecedência e horário entre 6h e 22h
 
@@ -159,6 +169,25 @@ Quando configurado em duas parcelas, o app:
 - Cada conta é atribuída à parcela com data de recebimento mais próxima (anterior) ao vencimento
 - Exibe cards separados mostrando quanto cada parcela cobre e o que sobra
 
+### Abertura do Mês
+
+Quando o mês vira, o Viso marca o ciclo como "não revisado" e mostra um card de preparação. O usuário pode:
+- Revisar contas recorrentes e parcelas
+- Adicionar contas avulsas do mês
+- Confirmar manualmente que o mês foi revisado
+
+Ao adicionar uma nova conta ou tocar em "Mês revisado", o app marca o mês como preparado e para os lembretes desse ciclo.
+
+### Radar Financeiro
+
+O Radar analisa o mês atual e exibe um alerta quando encontra sinais de desorganização:
+- Contas acima do limite de 70%
+- Contas maiores que a renda do mês
+- Muitas contas novas ou parcelas acumuladas
+- Reserva de emergência zerada com poupança prevista
+
+Cada alerta mostra a causa principal e uma ação sugerida, para ajudar o usuário a corrigir o mês antes de piorar.
+
 ### Contas Parceladas
 
 Cadastre compras parceladas (ex: TV 12x de R$ 200):
@@ -167,6 +196,18 @@ Cadastre compras parceladas (ex: TV 12x de R$ 200):
 - A primeira parcela recebe o resto da divisão para bater o total exato
 - Gera automaticamente as contas mensais no reset do mês
 - Visualização clara: "Parcela 3/12" em cada conta
+
+### Mês da Conta e Pagamento Antecipado
+
+O Viso separa o mês da conta (`dueMonth`) do mês em que ela foi paga (`paidMonth`). Isso permite cadastrar e pagar uma conta futura sem contaminar os totais do mês atual.
+
+Exemplo:
+- Conta do carro vence dia 08 de setembro
+- Você recebe dia 30 de agosto e paga antecipado
+- A conta pode ser cadastrada como "próximo mês"
+- Ao marcar como paga, ela continua pertencendo a setembro nos totais, agenda, radar, fechamento e streak
+
+Essa separação evita duplicidades e impede que o fechamento do mês atual apague ou resete contas futuras já cadastradas.
 
 <br>
 
@@ -214,7 +255,7 @@ app/src/main/java/com/viso/
 │   ├── datastore/
 │   │   └── ConfigDataStore.kt     # Preferências do usuário (DataStore)
 │   ├── db/
-│   │   ├── VisoDB.kt              # Room Database (v5)
+│   │   ├── VisoDB.kt              # Room Database (v6)
 │   │   ├── dao/
 │   │   │   ├── AchievementDao.kt  # 🏆 Conquistas
 │   │   │   ├── BillDao.kt
@@ -257,12 +298,14 @@ app/src/main/java/com/viso/
 │   │   ├── Config.kt
 │   │   ├── ExtraIncome.kt
 │   │   ├── FinancialSummary.kt
+│   │   ├── FinancialRadar.kt      # Diagnóstico mensal
 │   │   ├── Goal.kt
 │   │   ├── InstallmentBill.kt     # 🔄 Parcelas
 │   │   ├── MonthlySpending.kt
 │   │   ├── PaymentHistory.kt      # Histórico de contas pagas
 │   │   └── StreakInfo.kt          # 🔥 Streaks
 │   └── usecase/
+│       ├── CalculateFinancialRadarUseCase.kt
 │       ├── CalculateRuleUseCase.kt
 │       ├── CloseMonthUseCase.kt   # Fechamento manual
 │       ├── GenerateInstallmentBillsUseCase.kt  # 🔄
@@ -277,6 +320,7 @@ app/src/main/java/com/viso/
 │   ├── BillAlarmReceiver.kt
 │   ├── BootReceiver.kt
 │   ├── BootReceiverEntryPoint.kt
+│   ├── MonthSetupReminderReceiver.kt
 │   └── NotificationHelper.kt
 │
 └── ui/
@@ -421,7 +465,8 @@ data class Bill(
     val dueDay: Int,
     val category: String,
     val isPaid: Boolean,
-    val paidMonth: String,
+    val paidMonth: String,                   // mês em que foi paga
+    val dueMonth: String = "",               // mês ao qual a conta pertence
     val createdAt: Long,
     val isRecurring: Boolean = false,
     val isInstallment: Boolean = false,       // 🔄 É parcela?
@@ -478,7 +523,7 @@ data class StreakInfo(
 
 ## 🗄 Banco de Dados
 
-**Room Database** — `VisoDB` (versão 5)
+**Room Database** — `VisoDB` (versão 6)
 
 | Tabela | Entidade | Descrição |
 |--------|----------|-----------|
@@ -495,6 +540,7 @@ data class StreakInfo(
 - v2 → v3: Adiciona tabela `installment_bills` e colunas de parcela em `bills`
 - v3 → v4: Adiciona tabela `achievements`
 - v4 → v5: Adiciona tabela `payment_history` e índice por mês
+- v5 → v6: Adiciona `dueMonth` em `bills` para separar mês da conta e mês do pagamento
 
 <br>
 
@@ -616,9 +662,31 @@ O APK gerado estará em `app/build/outputs/apk/`.
 
 ## 📝 Changelog
 
+### v2.2.0 (Agosto/2026)
+
+#### ✨ Novas Funcionalidades
+- Contas agora possuem mês próprio (`dueMonth`), separado do mês de pagamento (`paidMonth`)
+- Aba Contas ganhou alternância rápida entre mês atual e próximo mês
+- Cadastro de conta permite escolher mês atual ou próximo mês diretamente no modal
+- Total "Falta pagar" mostra quanto ainda resta pagar no mês selecionado
+- Cards de conta exibem o mês da conta junto ao dia de vencimento
+
+#### 🛠 Correções
+- Corrigido falso erro ao criar/editar conta quando o salvamento dava certo, mas o reagendamento de notificações falhava depois
+- Modal de criação/edição agora fecha corretamente após salvar
+- Erros de conta ficaram mais descritivos, incluindo tipo técnico e detalhe da falha
+- Contas futuras pagas antecipadamente não entram no fechamento do mês atual
+- Fechamento, reset mensal, agenda, radar, streaks e notificações passaram a respeitar o mês real da conta
+- Deduplicação de contas agora considera o mês, evitando juntar contas iguais de meses diferentes
+- Testes do `BillRepository` atualizados para a nova assinatura do DAO
+
 ### v2.1.0 (Julho/2026)
 
 #### ✨ Novas Funcionalidades
+- Abertura do mês com card de revisão, confirmação manual e lembretes automáticos
+- Radar financeiro com diagnóstico de limite estourado, excesso de contas, parcelas e reserva parada
+- Aviso preventivo ao cadastrar uma conta que ultrapassa o limite de 70%
+- Vencimentos liberados até o dia 31, com ajuste em meses curtos
 - Metas agora aceitam entrada e retirada de valores
 - Reserva de emergência também permite movimentação manual com validação de saldo
 - Fechamento manual do mês com resumo, confirmação e aviso de pendências
@@ -709,4 +777,4 @@ Este projeto é de uso pessoal.
 
 ---
 
-**Viso v2.1.0** — Feito com Kotlin + Jetpack Compose ❤️
+**Viso v2.2.0** — Feito com Kotlin + Jetpack Compose ❤️

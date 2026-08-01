@@ -12,6 +12,7 @@ import com.viso.domain.model.ExtraIncome
 import com.viso.domain.model.SalaryMode
 import com.viso.domain.usecase.CloseMonthUseCase
 import com.viso.domain.usecase.ScheduleNotificationsUseCase
+import com.viso.domain.usecase.billDueMonth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -89,6 +90,8 @@ class ConfigViewModel @Inject constructor(
                 extraRepo.getByMonthFlow(currentMonth),
                 billRepo.getAllBillsFlow()
             ) { config, extras, bills ->
+                val currentYearMonth = YearMonth.parse(currentMonth)
+                val monthBills = bills.filter { billDueMonth(it, currentYearMonth) == currentYearMonth }
                 ConfigUiState(
                     config = config,
                     salaryCents = config.salaryCents,
@@ -104,9 +107,9 @@ class ConfigViewModel @Inject constructor(
                     notifDaysBefore = config.notifDaysBefore.coerceAtLeast(1),
                     isAutoReset = config.isAutoReset,
                     closingMonth = currentMonth,
-                    closeTotalBillsCents = bills.sumOf { it.amountCents },
-                    closePaidBillsCount = bills.count { it.isPaid },
-                    closeUnpaidBillsCount = bills.count { !it.isPaid },
+                    closeTotalBillsCents = monthBills.sumOf { it.amountCents },
+                    closePaidBillsCount = monthBills.count { it.isPaid },
+                    closeUnpaidBillsCount = monthBills.count { !it.isPaid },
                     closeExtraIncomeCents = extras.sumOf { it.amountCents },
                     isLoading = false
                 )
@@ -156,7 +159,18 @@ class ConfigViewModel @Inject constructor(
 
     fun saveSalary() {
         val state = _uiState.value
-        if (state.salaryMode == SalaryMode.SPLIT && state.payday1 == state.payday2) return
+        if (state.salaryMode == SalaryMode.SINGLE && state.salaryCents <= 0) {
+            viewModelScope.launch { _errorEvent.emit("Informe um salário mensal válido antes de salvar.") }
+            return
+        }
+        if (state.salaryMode == SalaryMode.SPLIT && (state.salary1Cents <= 0 || state.salary2Cents <= 0)) {
+            viewModelScope.launch { _errorEvent.emit("Informe as duas parcelas do salário antes de salvar.") }
+            return
+        }
+        if (state.salaryMode == SalaryMode.SPLIT && state.payday1 == state.payday2) {
+            viewModelScope.launch { _errorEvent.emit("Os dias de recebimento precisam ser diferentes.") }
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 configRepo.updateSalaryMode(state.salaryMode)
@@ -171,6 +185,7 @@ class ConfigViewModel @Inject constructor(
                     configRepo.updateSalary(state.salary1Cents + state.salary2Cents)
                 }
                 scheduleNotif()
+                _errorEvent.emit("Configurações de salário salvas.")
             } catch (e: Exception) {
                 _errorEvent.emit("Erro ao salvar salário: ${e.message}")
             }
@@ -222,7 +237,14 @@ class ConfigViewModel @Inject constructor(
 
     fun addExtra() {
         val state = _uiState.value
-        if (state.extraName.isBlank() || state.extraAmountCents <= 0) return
+        if (state.extraName.isBlank()) {
+            viewModelScope.launch { _errorEvent.emit("Informe uma descrição para a entrada extra.") }
+            return
+        }
+        if (state.extraAmountCents <= 0) {
+            viewModelScope.launch { _errorEvent.emit("Informe um valor válido para a entrada extra.") }
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 extraRepo.insert(
@@ -234,6 +256,7 @@ class ConfigViewModel @Inject constructor(
                     )
                 )
                 hideExtraSheet()
+                _errorEvent.emit("Entrada extra adicionada.")
             } catch (e: Exception) {
                 _errorEvent.emit("Erro ao adicionar entrada: ${e.message}")
             }
@@ -264,6 +287,7 @@ class ConfigViewModel @Inject constructor(
                 db.clearAllTables()
                 configRepo.clearAll()
                 _uiState.update { it.copy(showResetDialog2 = false) }
+                _errorEvent.emit("Dados resetados. Recrie a reserva para continuar.")
                 // Notify UI to prompt user to recreate emergency fund
                 _postResetEvent.emit(Unit)
             } catch (e: Exception) {
@@ -296,6 +320,7 @@ class ConfigViewModel @Inject constructor(
                         createdAt = System.currentTimeMillis()
                     )
                 )
+                _errorEvent.emit("Reserva de emergência recriada.")
             } catch (e: Exception) {
                 _errorEvent.emit("Erro ao criar reserva de emergência: ${e.message}")
             }
@@ -306,6 +331,9 @@ class ConfigViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 configRepo.updateAutoReset(enabled)
+                _errorEvent.emit(
+                    if (enabled) "Reset automático ativado." else "Reset automático desativado."
+                )
             } catch (e: Exception) {
                 _errorEvent.emit("Erro ao atualizar configuração: ${e.message}")
             }

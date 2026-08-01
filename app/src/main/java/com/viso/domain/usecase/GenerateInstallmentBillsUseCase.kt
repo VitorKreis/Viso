@@ -24,7 +24,7 @@ class GenerateInstallmentBillsUseCase @Inject constructor(
 
         // Só gera a primeira parcela se o mês de início for o atual ou passado
         if (!startMonth.isAfter(currentMonthParsed)) {
-            generateBillForMonth(installmentBill, 1, currentMonth)
+            generateBillForMonth(installmentBill, 1, installmentBill.startMonth)
         }
     }
 
@@ -50,7 +50,7 @@ class GenerateInstallmentBillsUseCase @Inject constructor(
                 if (installmentNumber <= installment.totalInstallments) {
                     // Verifica se já não existe uma conta para esta parcela
                     val existingBills = billRepository.getInstallmentBillsByParentId(installment.id)
-                    val alreadyExists = existingBills.any { it.paidMonth == month }
+                    val alreadyExists = existingBills.any { it.installmentNumber == installmentNumber }
 
                     if (!alreadyExists) {
                         generateBillForMonth(installment, installmentNumber, month)
@@ -85,7 +85,7 @@ class GenerateInstallmentBillsUseCase @Inject constructor(
     private suspend fun generateBillForMonth(
         installment: InstallmentBill,
         installmentNumber: Int,
-        month: String
+        dueMonth: String
     ) {
         val amount = calculateInstallmentAmount(
             installment.totalAmountCents,
@@ -101,6 +101,7 @@ class GenerateInstallmentBillsUseCase @Inject constructor(
             category = installment.category,
             isPaid = false,
             paidMonth = "",
+            dueMonth = dueMonth,
             createdAt = System.currentTimeMillis(),
             isRecurring = false,
             isInstallment = true,

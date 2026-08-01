@@ -16,7 +16,8 @@ data class Config(
     val currentStreak: Int = 0,
     val maxStreak: Int = 0,
     val notifHour: Int = 9,
-    val isAutoReset: Boolean = true
+    val isAutoReset: Boolean = true,
+    val monthSetupPreparedMonth: String = ""
 ) {
     val effectiveSalaryCents: Long
         get() = if (salaryMode == SalaryMode.SPLIT) salary1Cents + salary2Cents else salaryCents
