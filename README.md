@@ -29,6 +29,14 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 
 **Público-alvo:** Qualquer pessoa que queira organizar suas finanças mensais de forma simples e visual.
 
+### 📥 Baixar APK
+
+A versão mais recente para instalar manualmente no Android fica em:
+
+➡️ **[Baixar Viso APK pelo GitHub Releases](https://github.com/VitorKreis/Viso/releases/latest)**
+
+No celular, baixe o arquivo `.apk`, abra o arquivo e autorize a instalação de apps desconhecidos se o Android pedir.
+
 <br>
 
 ## ✨ Funcionalidades

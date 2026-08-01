@@ -16,8 +16,8 @@ android {
         applicationId = "com.viso"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 22
+        versionName = "2.2.0"
     }
 
     buildTypes {
