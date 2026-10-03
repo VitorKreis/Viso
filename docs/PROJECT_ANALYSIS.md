@@ -1,8 +1,8 @@
 # Project Analysis
 
-**Projeto:** Viso  
-**Escopo:** arquitetura, persistência, distribuição e qualidade  
-**Base analisada:** `main` em `v2.2.0` (`ba9eb22`)  
+**Projeto:** Viso
+**Escopo:** arquitetura, persistência, distribuição e qualidade
+**Base analisada:** `main` em `v2.2.0` (`ba9eb22`)
 **Data da análise:** 2026-10-03
 
 ## 1. Visão geral
