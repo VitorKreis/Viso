@@ -3,6 +3,7 @@ package com.viso.data.repository
 import com.viso.data.datastore.ConfigDataStore
 import com.viso.domain.model.Config
 import com.viso.domain.model.SalaryMode
+import com.viso.domain.repository.ConfigRepositoryContract
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -10,10 +11,10 @@ import javax.inject.Singleton
 @Singleton
 class ConfigRepository @Inject constructor(
     private val configDataStore: ConfigDataStore
-) {
+) : ConfigRepositoryContract {
     val configFlow: Flow<Config> = configDataStore.configFlow
 
-    suspend fun getConfig(): Config = configDataStore.getConfig()
+    override suspend fun getConfig(): Config = configDataStore.getConfig()
 
     suspend fun updateSalary(cents: Long) = configDataStore.updateSalary(cents)
 
@@ -23,7 +24,7 @@ class ConfigRepository @Inject constructor(
 
     suspend fun updateNotifDaysBefore(days: Int) = configDataStore.updateNotifDaysBefore(days)
 
-    suspend fun updateLastResetMonth(month: String) = configDataStore.updateLastResetMonth(month)
+    override suspend fun updateLastResetMonth(month: String) = configDataStore.updateLastResetMonth(month)
 
     suspend fun updateSalaryMode(mode: SalaryMode) = configDataStore.updateSalaryMode(mode)
 

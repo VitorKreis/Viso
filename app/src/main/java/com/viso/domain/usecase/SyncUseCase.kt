@@ -1,18 +1,18 @@
 package com.viso.domain.usecase
 
-import com.viso.data.repository.BillRepository
-import com.viso.data.repository.GoalRepository
-import com.viso.data.sync.FirestoreSyncManager
+import com.viso.domain.repository.BillRepositoryContract
+import com.viso.domain.repository.GoalRepositoryContract
+import com.viso.domain.repository.RemoteDataSource
 import javax.inject.Inject
 
 class SyncUseCase @Inject constructor(
-    private val syncManager: FirestoreSyncManager,
-    private val billRepository: BillRepository,
-    private val goalRepository: GoalRepository
+    private val remoteDataSource: RemoteDataSource,
+    private val billRepository: BillRepositoryContract,
+    private val goalRepository: GoalRepositoryContract
 ) {
     suspend fun pullFromCloud() {
         // Pull bills
-        syncManager.getAllBillsOnce().onSuccess { cloudBills ->
+        remoteDataSource.getAllBillsOnce().onSuccess { cloudBills ->
             val localBills = billRepository.getAllBills()
             val cloudIds = cloudBills.map { it.id }.toSet()
 
@@ -23,12 +23,12 @@ class SyncUseCase @Inject constructor(
 
             // Upload local bills not in cloud
             localBills.filter { it.id !in cloudIds }.forEach { localBill ->
-                syncManager.syncBill(localBill)
+                remoteDataSource.syncBill(localBill)
             }
         }
 
         // Pull goals
-        syncManager.getAllGoalsOnce().onSuccess { cloudGoals ->
+        remoteDataSource.getAllGoalsOnce().onSuccess { cloudGoals ->
             val localGoals = goalRepository.getAllGoals()
             val cloudIds = cloudGoals.map { it.id }.toSet()
 
@@ -39,7 +39,7 @@ class SyncUseCase @Inject constructor(
 
             // Upload local goals not in cloud
             localGoals.filter { it.id !in cloudIds }.forEach { localGoal ->
-                syncManager.syncGoal(localGoal)
+                remoteDataSource.syncGoal(localGoal)
             }
         }
     }

@@ -10,4 +10,11 @@ data class PaymentHistory(
     val dueDay: Int,
     val paidAt: Long,
     val isRecurring: Boolean = false
-)
+) {
+    init {
+        IdentityContract.requireId(id)
+        IdentityContract.requireId(billId, "billId")
+        MonthContract.requireMonth(month)
+        require(amountCents >= 0) { "amountCents cannot be negative" }
+    }
+}

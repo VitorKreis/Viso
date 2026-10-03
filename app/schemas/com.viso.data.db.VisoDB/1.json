@@ -1,0 +1,76 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "legacy-v1",
+    "entities": [
+      {
+        "tableName": "bills",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `amountCents` INTEGER NOT NULL, `dueDay` INTEGER NOT NULL, `category` TEXT NOT NULL, `isPaid` INTEGER NOT NULL, `paidMonth` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          { "fieldPath": "id", "columnName": "id", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "name", "columnName": "name", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "amountCents", "columnName": "amountCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "dueDay", "columnName": "dueDay", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "category", "columnName": "category", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "isPaid", "columnName": "isPaid", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "paidMonth", "columnName": "paidMonth", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "createdAt", "columnName": "createdAt", "affinity": "INTEGER", "notNull": true }
+        ],
+        "primaryKey": { "autoGenerate": false, "columnNames": ["id"] },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "goals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `targetAmountCents` INTEGER NOT NULL, `currentAmountCents` INTEGER NOT NULL, `monthlyContributionCents` INTEGER NOT NULL, `isEmergencyFund` INTEGER NOT NULL, `color` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          { "fieldPath": "id", "columnName": "id", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "name", "columnName": "name", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "targetAmountCents", "columnName": "targetAmountCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "currentAmountCents", "columnName": "currentAmountCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "monthlyContributionCents", "columnName": "monthlyContributionCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "isEmergencyFund", "columnName": "isEmergencyFund", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "color", "columnName": "color", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "createdAt", "columnName": "createdAt", "affinity": "INTEGER", "notNull": true }
+        ],
+        "primaryKey": { "autoGenerate": false, "columnNames": ["id"] },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "extra_incomes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `amountCents` INTEGER NOT NULL, `month` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          { "fieldPath": "id", "columnName": "id", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "name", "columnName": "name", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "amountCents", "columnName": "amountCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "month", "columnName": "month", "affinity": "TEXT", "notNull": true }
+        ],
+        "primaryKey": { "autoGenerate": false, "columnNames": ["id"] },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "month_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`month` TEXT NOT NULL, `salaryCents` INTEGER NOT NULL, `totalBillsCents` INTEGER NOT NULL, `billsLimitCents` INTEGER NOT NULL, `spendingBudgetCents` INTEGER NOT NULL, `savingsBudgetCents` INTEGER NOT NULL, PRIMARY KEY(`month`))",
+        "fields": [
+          { "fieldPath": "month", "columnName": "month", "affinity": "TEXT", "notNull": true },
+          { "fieldPath": "salaryCents", "columnName": "salaryCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "totalBillsCents", "columnName": "totalBillsCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "billsLimitCents", "columnName": "billsLimitCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "spendingBudgetCents", "columnName": "spendingBudgetCents", "affinity": "INTEGER", "notNull": true },
+          { "fieldPath": "savingsBudgetCents", "columnName": "savingsBudgetCents", "affinity": "INTEGER", "notNull": true }
+        ],
+        "primaryKey": { "autoGenerate": false, "columnNames": ["month"] },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'legacy-v1')"
+    ]
+  }
+}

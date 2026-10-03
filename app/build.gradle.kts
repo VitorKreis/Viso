@@ -1,3 +1,4 @@
+import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.api.tasks.testing.Test
 
 plugins {
@@ -7,6 +8,17 @@ plugins {
     alias(libs.plugins.hilt)
     id("com.google.gms.google-services")
 }
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+    arg("room.generateKotlin", "true")
+}
+
+val releaseKeystoreFile = providers.gradleProperty("visoKeystoreFile").orNull
+val releaseKeystorePassword = providers.gradleProperty("visoKeystorePassword").orNull
+val releaseKeyAlias = providers.gradleProperty("visoKeyAlias").orNull
+val releaseKeyPassword = providers.gradleProperty("visoKeyPassword").orNull
 
 android {
     namespace = "com.viso"
@@ -18,11 +30,34 @@ android {
         targetSdk = 34
         versionCode = 22
         versionName = "2.2.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        getByName("androidTest") {
+            assets.srcDir("$projectDir/schemas")
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            if (releaseKeystoreFile != null &&
+                releaseKeystorePassword != null &&
+                releaseKeyAlias != null &&
+                releaseKeyPassword != null
+            ) {
+                storeFile = project.file(releaseKeystoreFile)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -112,6 +147,23 @@ dependencies {
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation("androidx.room:room-testing:2.6.1")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+}
+
+val applicationExtension = extensions.getByType<ApplicationExtension>()
+tasks.register("printVersionName") {
+    doLast { println(applicationExtension.defaultConfig.versionName) }
+}
+
+tasks.register("printVersionCode") {
+    doLast { println(applicationExtension.defaultConfig.versionCode) }
 }
 
 tasks.withType<Test>().configureEach {

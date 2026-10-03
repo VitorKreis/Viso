@@ -1,11 +1,9 @@
 package com.viso.ui.reports
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.viso.MainActivity
-import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -13,10 +11,10 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class ReportsScreenTest {
     @get:Rule
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val composeRule = createComposeRule()
 
     @Test
-    fun reportsScreen_rendersChartAndFilters() = runBlocking {
+    fun reportsScreen_rendersChartAndFilters() {
         // create a small repo and ViewModel with sample data
         val fakeDao = object : com.viso.data.db.dao.MonthHistoryDao {
             override suspend fun getAll() = emptyList<com.viso.data.db.entity.MonthHistoryEntity>()
@@ -27,10 +25,8 @@ class ReportsScreenTest {
         val fakeRepo = ReportsRepository(fakeDao)
         val vm = ReportsViewModel(fakeRepo)
 
-        composeRule.activityRule.scenario.onActivity {
-            composeRule.setContent {
-                ReportsScreen(onBack = {}, viewModel = vm)
-            }
+        composeRule.setContent {
+            ReportsScreen(onBack = {}, viewModel = vm)
         }
 
         // check that filter buttons are present

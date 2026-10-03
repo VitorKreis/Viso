@@ -176,7 +176,7 @@ class BillRepositoryTest {
             amountCents = 1500L,
             dueDay = 10,
             category = "outro",
-            isPaid = false,
+            isPaid = true,
             paidMonth = "2026-04",
             createdAt = 1L
         )

@@ -1,12 +1,17 @@
 package com.viso
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.viso.notification.NotificationHelper
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 @HiltAndroidApp
-class MainApplication : Application() {
+class MainApplication : Application(), Configuration.Provider {
+
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
 
     @Inject
     lateinit var notificationHelper: NotificationHelper
@@ -15,4 +20,9 @@ class MainApplication : Application() {
         super.onCreate()
         notificationHelper.createChannel()
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 }

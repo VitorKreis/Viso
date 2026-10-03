@@ -28,7 +28,7 @@ import com.viso.data.db.entity.PaymentHistoryEntity
         PaymentHistoryEntity::class
     ],
     version = 6,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class VisoDB : RoomDatabase() {
     abstract fun billDao(): BillDao

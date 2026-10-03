@@ -1,6 +1,7 @@
 package com.viso.domain.usecase
 
 import com.viso.domain.model.Bill
+import com.viso.domain.model.MonthContract
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -23,8 +24,7 @@ fun clampDayToMonth(day: Int, year: Int, month: Int): Int {
 }
 
 fun billDueMonth(bill: Bill, fallback: YearMonth = YearMonth.now()): YearMonth {
-    val month = bill.dueMonth.ifBlank { bill.paidMonth }
-    return runCatching { YearMonth.parse(month) }.getOrDefault(fallback)
+    return MonthContract.resolveDueMonth(bill.dueMonth, bill.paidMonth, fallback)
 }
 
 fun billDueDate(bill: Bill, fallback: YearMonth = YearMonth.now()): LocalDate {

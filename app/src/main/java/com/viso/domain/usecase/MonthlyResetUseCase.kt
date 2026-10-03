@@ -1,22 +1,17 @@
 package com.viso.domain.usecase
 
-import com.viso.data.db.entity.MonthHistoryEntity
-import com.viso.data.repository.BillRepository
 import com.viso.data.repository.ConfigRepository
-import com.viso.data.repository.ExtraIncomeRepository
-import com.viso.data.repository.HistoryRepository
-import com.viso.data.repository.PaymentHistoryRepository
+import com.viso.domain.model.IdentityContract
 import com.viso.domain.model.PaymentHistory
+import com.viso.domain.repository.MonthCloseRequest
+import com.viso.domain.repository.MonthCloseStore
+import com.viso.domain.repository.MonthHistoryRecord
 import java.time.YearMonth
-import java.util.UUID
 import javax.inject.Inject
 
 class MonthlyResetUseCase @Inject constructor(
     private val configRepo: ConfigRepository,
-    private val billRepo: BillRepository,
-    private val extraIncomeRepo: ExtraIncomeRepository,
-    private val historyRepo: HistoryRepository,
-    private val paymentHistoryRepo: PaymentHistoryRepository,
+    private val monthCloseStore: MonthCloseStore,
     private val scheduleNotif: ScheduleNotificationsUseCase,
     private val generateInstallmentBills: GenerateInstallmentBillsUseCase,
     private val updateStreak: UpdateStreakUseCase,
@@ -24,25 +19,24 @@ class MonthlyResetUseCase @Inject constructor(
 ) {
     suspend operator fun invoke() {
         val config = configRepo.getConfig()
-        val currentMonth = YearMonth.now().toString()
+        val currentMonth = YearMonth.now()
+        val currentMonthText = currentMonth.toString()
 
-        if (config.lastResetMonth == currentMonth) return
+        if (config.lastResetMonth == currentMonthText) return
 
         if (config.lastResetMonth.isNotEmpty()) {
             val closedMonth = YearMonth.parse(config.lastResetMonth)
-            val bills = billRepo.getAllBills().filter { billDueMonth(it, closedMonth) == closedMonth }
-            val totalBillsCents = bills.sumOf { it.amountCents }
-            val extraTotal = extraIncomeRepo.getTotalForMonth(config.lastResetMonth)
-            val rule = CalculateRuleUseCase()(config.effectiveSalaryCents, extraTotal)
-            val monthCompleted = bills.isNotEmpty() && bills.all { it.isPaid }
-
-            paymentHistoryRepo.deleteByMonth(config.lastResetMonth)
-            
-            // 1. Save detailed payment history for paid bills
-            bills.filter { it.isPaid }.forEach { bill ->
-                paymentHistoryRepo.insert(
+            val existingHistory = monthCloseStore.getHistory(config.lastResetMonth)
+            if (existingHistory == null) {
+                val bills = monthCloseStore.getBills()
+                    .filter { billDueMonth(it, closedMonth) == closedMonth }
+                val paidBills = bills.filter { it.isPaid }
+                val unpaidBills = bills.filter { !it.isPaid }
+                val extraTotal = monthCloseStore.getExtraIncomeTotal(config.lastResetMonth)
+                val rule = CalculateRuleUseCase()(config.effectiveSalaryCents, extraTotal)
+                val payments = paidBills.map { bill ->
                     PaymentHistory(
-                        id = UUID.randomUUID().toString(),
+                        id = "payment:${config.lastResetMonth}:${IdentityContract.requireId(bill.id, "billId")}",
                         month = config.lastResetMonth,
                         billId = bill.id,
                         billName = bill.name,
@@ -52,39 +46,32 @@ class MonthlyResetUseCase @Inject constructor(
                         paidAt = System.currentTimeMillis(),
                         isRecurring = bill.isRecurring
                     )
+                }
+                val didClose = monthCloseStore.close(
+                    MonthCloseRequest(
+                        month = config.lastResetMonth,
+                        nextMonth = currentMonthText,
+                        history = MonthHistoryRecord(
+                            month = config.lastResetMonth,
+                            salaryCents = config.effectiveSalaryCents,
+                            totalBillsCents = bills.sumOf { it.amountCents },
+                            billsLimitCents = rule.billsLimitCents,
+                            spendingBudgetCents = rule.spendingCents,
+                            savingsBudgetCents = rule.savingsCents
+                        ),
+                        payments = payments,
+                        archivedBillIds = bills.filter { !it.isRecurring && it.isPaid }.map { it.id }
+                    )
                 )
+                if (didClose) {
+                    updateStreak(bills.isNotEmpty() && unpaidBills.isEmpty())
+                    checkAchievements()
+                }
             }
-            
-            // 2. Save month summary
-            historyRepo.saveMonth(
-                MonthHistoryEntity(
-                    month = config.lastResetMonth,
-                    salaryCents = config.effectiveSalaryCents,
-                    totalBillsCents = totalBillsCents,
-                    billsLimitCents = rule.billsLimitCents,
-                    spendingBudgetCents = rule.spendingCents,
-                    savingsBudgetCents = rule.savingsCents
-                )
-            )
-
-            // 3. Reset paid status for recurring bills only
-            billRepo.resetRecurringPaidStatus(config.lastResetMonth, currentMonth)
-            
-            // 4. Delete avulsas (non-recurring) that were paid
-            bills.filter { !it.isRecurring && it.isPaid }.forEach { bill ->
-                billRepo.deleteById(bill.id)
-            }
-            
-            extraIncomeRepo.deleteByMonth(config.lastResetMonth)
-            updateStreak(monthCompleted)
-            checkAchievements()
         }
 
-        configRepo.updateLastResetMonth(currentMonth)
-
-        // Generate installment bills for the new month
-        generateInstallmentBills.generateBillsForMonth(currentMonth)
-
+        configRepo.updateLastResetMonth(currentMonthText)
+        generateInstallmentBills.generateBillsForMonth(currentMonthText)
         scheduleNotif()
     }
 }

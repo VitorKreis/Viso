@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.viso.data.auth.AuthRepository
 import com.viso.domain.model.Bill
 import com.viso.domain.model.Goal
+import com.viso.domain.repository.RemoteDataSource
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -15,12 +16,12 @@ import javax.inject.Singleton
 class FirestoreSyncManager @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val authRepository: AuthRepository
-) {
+) : RemoteDataSource {
     private val userId: String?
         get() = authRepository.getUserId()
 
     // BILLS
-    suspend fun syncBill(bill: Bill): Result<Unit> {
+    override suspend fun syncBill(bill: Bill): Result<Unit> {
         val uid = userId ?: return Result.failure(Exception("Usuário não autenticado"))
         
         return try {
@@ -36,7 +37,7 @@ class FirestoreSyncManager @Inject constructor(
         }
     }
 
-    suspend fun deleteBill(billId: String): Result<Unit> {
+    override suspend fun deleteBill(billId: String): Result<Unit> {
         val uid = userId ?: return Result.failure(Exception("Usuário não autenticado"))
         
         return try {
@@ -52,7 +53,7 @@ class FirestoreSyncManager @Inject constructor(
         }
     }
 
-    suspend fun syncBillPaidStatus(billId: String, isPaid: Boolean, paidMonth: String): Result<Unit> {
+    override suspend fun syncBillPaidStatus(billId: String, isPaid: Boolean, paidMonth: String): Result<Unit> {
         val uid = userId ?: return Result.failure(Exception("Usuário não autenticado"))
 
         return try {
@@ -72,7 +73,7 @@ class FirestoreSyncManager @Inject constructor(
         }
     }
 
-    suspend fun getAllBillsOnce(): Result<List<Bill>> {
+    override suspend fun getAllBillsOnce(): Result<List<Bill>> {
         val uid = userId ?: return Result.failure(Exception("Usuário não autenticado"))
         return try {
             val snapshot = firestore.collection("users")
@@ -87,7 +88,7 @@ class FirestoreSyncManager @Inject constructor(
         }
     }
 
-    suspend fun getAllGoalsOnce(): Result<List<Goal>> {
+    override suspend fun getAllGoalsOnce(): Result<List<Goal>> {
         val uid = userId ?: return Result.failure(Exception("Usuário não autenticado"))
         return try {
             val snapshot = firestore.collection("users")
@@ -129,7 +130,7 @@ class FirestoreSyncManager @Inject constructor(
     }
 
     // GOALS
-    suspend fun syncGoal(goal: Goal): Result<Unit> {
+    override suspend fun syncGoal(goal: Goal): Result<Unit> {
         val uid = userId ?: return Result.failure(Exception("Usuário não autenticado"))
         
         return try {
@@ -145,7 +146,7 @@ class FirestoreSyncManager @Inject constructor(
         }
     }
 
-    suspend fun deleteGoal(goalId: String): Result<Unit> {
+    override suspend fun deleteGoal(goalId: String): Result<Unit> {
         val uid = userId ?: return Result.failure(Exception("Usuário não autenticado"))
 
         return try {

@@ -3,6 +3,7 @@ package com.viso.data.repository
 import com.viso.data.db.dao.GoalDao
 import com.viso.data.db.entity.GoalEntity
 import com.viso.domain.model.Goal
+import com.viso.domain.repository.GoalRepositoryContract
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -10,13 +11,12 @@ import javax.inject.Singleton
 
 @Singleton
 class GoalRepository @Inject constructor(
-    private val goalDao: GoalDao,
-    private val firestoreSync: com.viso.data.sync.FirestoreSyncManager? = null
-) {
+    private val goalDao: GoalDao
+) : GoalRepositoryContract {
     fun getAllGoalsFlow(): Flow<List<Goal>> =
         goalDao.getAllGoals().map { list -> list.map { it.toDomain() } }
 
-    suspend fun getAllGoals(): List<Goal> =
+    override suspend fun getAllGoals(): List<Goal> =
         goalDao.getAllGoalsList().map { it.toDomain() }
 
     suspend fun getGoalById(id: String): Goal? =
@@ -28,7 +28,7 @@ class GoalRepository @Inject constructor(
     suspend fun getGoalCount(): Int =
         goalDao.getGoalCount()
 
-    suspend fun insert(goal: Goal) =
+    override suspend fun insert(goal: Goal) =
         goalDao.insert(goal.toEntity())
 
     suspend fun update(goal: Goal) =
@@ -36,13 +36,6 @@ class GoalRepository @Inject constructor(
 
     suspend fun deleteById(id: String) =
         goalDao.deleteById(id)
-
-    // Firestore sync methods
-    suspend fun syncGoalToFirestore(goal: Goal) =
-        firestoreSync?.syncGoal(goal) ?: Result.failure(Exception("Sincronização indisponível"))
-
-    suspend fun deleteGoalFromFirestore(goalId: String) =
-        firestoreSync?.deleteGoal(goalId) ?: Result.failure(Exception("Sincronização indisponível"))
 
     private fun GoalEntity.toDomain() = Goal(
         id = id,

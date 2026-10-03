@@ -2,6 +2,7 @@ package com.viso.domain.usecase
 
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.os.Build
 import android.content.Context
 import android.content.Intent
 import com.viso.data.repository.BillRepository
@@ -65,7 +66,7 @@ class ScheduleNotificationsUseCase @Inject constructor(
                 context, bill.id.hashCode(), intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pi)
+            setExactAlarmIfAllowed(alarmManager, triggerMillis, pi)
         }
     }
 
@@ -115,7 +116,25 @@ class ScheduleNotificationsUseCase @Inject constructor(
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMillis, pi)
+        setExactAlarmIfAllowed(alarmManager, triggerMillis, pi)
+    }
+
+    private fun setExactAlarmIfAllowed(
+        alarmManager: AlarmManager,
+        triggerMillis: Long,
+        pendingIntent: PendingIntent
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()
+        ) return
+
+        runCatching {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerMillis,
+                pendingIntent
+            )
+        }
     }
 
     companion object {
