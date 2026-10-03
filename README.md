@@ -29,13 +29,15 @@ Viso é um gerenciador financeiro pessoal offline-first, construído com Jetpack
 
 **Público-alvo:** Qualquer pessoa que queira organizar suas finanças mensais de forma simples e visual.
 
-### 📥 Baixar APK
+### 📦 Estado atual da distribuição
 
-A versão mais recente para instalar manualmente no Android fica em:
+O código atual está validado localmente com testes unitários, lint, build debug e testes instrumentados em um Moto G53 5G. O APK debug é adequado para testes técnicos, mas ainda **não é uma release pública assinada**.
 
-➡️ **[Baixar Viso APK pelo GitHub Releases](https://github.com/VitorKreis/Viso/releases/latest)**
+O processo de release assinado está preparado no workflow do GitHub, porém a validação final do R8 e a configuração dos secrets de assinatura ficam para a próxima etapa. Não instale o APK debug como se fosse uma versão estável de produção.
 
-No celular, baixe o arquivo `.apk`, abra o arquivo e autorize a instalação de apps desconhecidos se o Android pedir.
+Quando houver uma release pública, ela estará em:
+
+➡️ **[Viso no GitHub Releases](https://github.com/VitorKreis/Viso/releases)**
 
 <br>
 
@@ -247,6 +249,8 @@ O projeto segue **MVVM** com Clean Architecture simplificada:
 - **Reactive Streams** — `Flow` do Room + `combine()` nos ViewModels
 - **Offline-first** — Todos os dados persistidos localmente (Room + DataStore)
 - **Backup opcional** — Firebase Auth + Firestore preparados para login e sincronização
+- **Fechamento transacional** — O fechamento mensal usa uma transação Room e uma chave idempotente por mês
+- **Contratos de dados** — O domínio depende de contratos de repository; Room e Firebase ficam nos adapters de dados
 
 <br>
 
@@ -550,6 +554,8 @@ data class StreakInfo(
 - v4 → v5: Adiciona tabela `payment_history` e índice por mês
 - v5 → v6: Adiciona `dueMonth` em `bills` para separar mês da conta e mês do pagamento
 
+Os schemas exportados ficam versionados em `app/schemas/`. A cadeia v1→v6, a criação limpa do banco e os testes transacionais são exercitados em `androidTest`.
+
 <br>
 
 ## 🧭 Navegação
@@ -645,6 +651,16 @@ cd Viso
 ./gradlew assembleDebug
 ```
 
+### Validação completa
+```bash
+./gradlew testDebugUnitTest
+./gradlew lintDebug
+./gradlew assembleDebug
+./gradlew connectedDebugAndroidTest
+```
+
+O último comando exige um emulador ou telefone autorizado no `adb`.
+
 ### Instalar no dispositivo conectado
 ```bash
 ./gradlew installDebug
@@ -664,7 +680,9 @@ O script procura o `adb`, instala o APK debug no primeiro aparelho autorizado e 
 ./gradlew assembleRelease
 ```
 
-O APK gerado estará em `app/build/outputs/apk/`.
+O build release exige um keystore e propriedades de assinatura fornecidos em runtime; nenhum keystore ou segredo deve ser versionado. O workflow `.github/workflows/release-apk.yml` reconstrói o keystore a partir dos GitHub Secrets, valida a tag contra `versionName`, executa testes/lint e publica o APK com SHA-256.
+
+O release ainda depende da validação do R8 nesta máquina. Até essa etapa ser concluída, use o APK debug somente para testes locais.
 
 <br>
 
